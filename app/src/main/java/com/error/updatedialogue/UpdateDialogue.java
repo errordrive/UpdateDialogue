@@ -152,11 +152,11 @@ public class UpdateDialogue {
 
         // Minimalist Wink-style face (no background circle: 2 eyes + mouth + head sparkles)
         final WinkFaceView faceView = new WinkFaceView(activity);
-        int faceW = dpToPx(activity, 96);
-        int faceH = dpToPx(activity, 76);
+        int faceW = dpToPx(activity, 132);
+        int faceH = dpToPx(activity, 104);
         LinearLayout.LayoutParams faceParams = new LinearLayout.LayoutParams(faceW, faceH);
         faceParams.gravity = Gravity.CENTER_HORIZONTAL;
-        faceParams.bottomMargin = dpToPx(activity, 12);
+        faceParams.bottomMargin = dpToPx(activity, 10);
         faceView.setLayoutParams(faceParams);
 
         // Minimalist pill tag
@@ -621,9 +621,9 @@ public class UpdateDialogue {
             }
 
             float cx = w / 2.0f;
-            float bobOffset = (float) Math.sin(floatPhase) * dpToPx(1.8f);
+            float bobOffset = (float) Math.sin(floatPhase) * dpToPx(2.0f);
             float cy = (h * 0.56f) + bobOffset;
-            float unit = Math.min(w, h) * 0.36f;
+            float unit = Math.min(w, h) * 0.42f;
 
             // --- Eyes (no background circle) ---
             float eyeY = cy - (unit * 0.16f);
