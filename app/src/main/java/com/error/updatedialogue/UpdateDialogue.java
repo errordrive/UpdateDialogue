@@ -208,12 +208,19 @@ public class UpdateDialogue {
         actionBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (url != null && !url.isEmpty()) {
-                    try {
-                        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-                        activity.startActivity(intent);
-                    } catch (Exception e) {
-                        e.printStackTrace();
+                if (url != null) {
+                    String targetUrl = url.trim();
+                    if (!targetUrl.isEmpty()) {
+                        if (!targetUrl.startsWith("http://") && !targetUrl.startsWith("https://")) {
+                            targetUrl = "https://" + targetUrl;
+                        }
+                        try {
+                            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl));
+                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                            activity.startActivity(intent);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
                     }
                 }
             }
@@ -309,7 +316,29 @@ public class UpdateDialogue {
 
         AnimatorSet full = new AnimatorSet();
         full.playTogether(cardSet, iconSet, titleSet, msgSet, btnSet);
+        full.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                startButtonAttentionPulse(button);
+            }
+        });
         full.start();
+    }
+
+    private static void startButtonAttentionPulse(final View button) {
+        ObjectAnimator pulseX = ObjectAnimator.ofFloat(button, View.SCALE_X, 1.0f, 1.035f, 1.0f);
+        ObjectAnimator pulseY = ObjectAnimator.ofFloat(button, View.SCALE_Y, 1.0f, 1.035f, 1.0f);
+        pulseX.setRepeatCount(ValueAnimator.INFINITE);
+        pulseY.setRepeatCount(ValueAnimator.INFINITE);
+        pulseX.setRepeatMode(ValueAnimator.RESTART);
+        pulseY.setRepeatMode(ValueAnimator.RESTART);
+
+        AnimatorSet pulseSet = new AnimatorSet();
+        pulseSet.playTogether(pulseX, pulseY);
+        pulseSet.setDuration(1600);
+        pulseSet.setStartDelay(800);
+        pulseSet.setInterpolator(new AccelerateDecelerateInterpolator());
+        pulseSet.start();
     }
 
     private static AnimatorSet createSlideFadeIn(View view, long delayMs, long durationMs) {
