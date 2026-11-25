@@ -12,13 +12,18 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.LinearGradient;
+import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.RadialGradient;
 import android.graphics.RectF;
+import android.graphics.Shader;
 import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.TypedValue;
@@ -30,7 +35,7 @@ import android.view.WindowManager;
 import android.view.animation.AccelerateDecelerateInterpolator;
 import android.view.animation.DecelerateInterpolator;
 import android.view.animation.OvershootInterpolator;
-import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -44,12 +49,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Animated Update Dialogue that can be called directly from MainActivity.onCreate().
+ * Polished, animated Update Dialogue that can be called directly from MainActivity.onCreate().
  *
  * Usage:
  *   UpdateDialogue.checkAndShow(this);
- *   // Or show directly without waiting for remote JSON:
- *   UpdateDialogue.show(this, "New Update!", "Version 2.0 is out.", "UPDATE NOW", "https://example.com");
+ *   // Or show directly:
+ *   UpdateDialogue.show(this, "New Update!", "Update available.", "UPDATE NOW", "https://example.com");
  */
 public class UpdateDialogue {
     private static final String JSON_URL = "https://pastebin.com/raw/YJVbZS65";
@@ -120,84 +125,119 @@ public class UpdateDialogue {
         Window window = dialog.getWindow();
         if (window != null) {
             window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-            window.setDimAmount(0.6f);
+            window.setDimAmount(0.62f);
         }
 
-        // Card container
+        // Main card container
         final LinearLayout cardLayout = new LinearLayout(activity);
         cardLayout.setOrientation(LinearLayout.VERTICAL);
-        cardLayout.setGravity(Gravity.CENTER);
-        int padding = dpToPx(activity, 32);
-        cardLayout.setPadding(padding, padding, padding, padding);
+        cardLayout.setGravity(Gravity.CENTER_HORIZONTAL);
+        int padH = dpToPx(activity, 28);
+        int padTop = dpToPx(activity, 28);
+        int padBottom = dpToPx(activity, 26);
+        cardLayout.setPadding(padH, padTop, padH, padBottom);
 
         GradientDrawable cardBg = new GradientDrawable();
         cardBg.setColor(Color.WHITE);
-        cardBg.setCornerRadius(dpToPx(activity, 24));
+        cardBg.setCornerRadius(dpToPx(activity, 28));
+        cardBg.setStroke(dpToPx(activity, 1), Color.parseColor("#ECEEF2"));
         cardLayout.setBackground(cardBg);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            cardLayout.setElevation(dpToPx(activity, 18));
+        }
 
-        // Original winking & sparkling face view (with animations)
+        // Spotlight halo + original winking/sparkling face
+        FrameLayout iconContainer = new FrameLayout(activity);
+        int haloSize = dpToPx(activity, 100);
+        LinearLayout.LayoutParams haloParams = new LinearLayout.LayoutParams(haloSize, haloSize);
+        haloParams.gravity = Gravity.CENTER_HORIZONTAL;
+        haloParams.bottomMargin = dpToPx(activity, 12);
+        iconContainer.setLayoutParams(haloParams);
+
+        final HaloGlowView haloView = new HaloGlowView(activity);
+        haloView.setLayoutParams(new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+        ));
+
         final PerfectEmojiView iconView = new PerfectEmojiView(activity);
         int iconSize = dpToPx(activity, 72);
-        LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(iconSize, iconSize);
-        iconParams.gravity = Gravity.CENTER_HORIZONTAL;
-        iconParams.bottomMargin = dpToPx(activity, 16);
+        FrameLayout.LayoutParams iconParams = new FrameLayout.LayoutParams(iconSize, iconSize);
+        iconParams.gravity = Gravity.CENTER;
         iconView.setLayoutParams(iconParams);
+
+        iconContainer.addView(haloView);
+        iconContainer.addView(iconView);
+
+        // Subtle status pill badge
+        final TextView badgeView = new TextView(activity);
+        badgeView.setText("UPDATE AVAILABLE");
+        badgeView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f);
+        badgeView.setTypeface(Typeface.DEFAULT_BOLD);
+        badgeView.setTextColor(Color.parseColor("#A66000"));
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            badgeView.setLetterSpacing(0.08f);
+        }
+        badgeView.setPadding(
+                dpToPx(activity, 12),
+                dpToPx(activity, 5),
+                dpToPx(activity, 12),
+                dpToPx(activity, 5)
+        );
+        GradientDrawable badgeBg = new GradientDrawable();
+        badgeBg.setColor(Color.parseColor("#FFF4D8"));
+        badgeBg.setCornerRadius(dpToPx(activity, 50));
+        badgeView.setBackground(badgeBg);
+        LinearLayout.LayoutParams badgeParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+        );
+        badgeParams.gravity = Gravity.CENTER_HORIZONTAL;
+        badgeParams.bottomMargin = dpToPx(activity, 12);
+        badgeView.setLayoutParams(badgeParams);
 
         // Title
         final TextView titleView = new TextView(activity);
         titleView.setText(titleText);
         titleView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22.0f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
-        titleView.setTextColor(Color.parseColor("#202124"));
+        titleView.setTextColor(Color.parseColor("#18191B"));
         titleView.setGravity(Gravity.CENTER);
 
         // Message
         final TextView msgView = new TextView(activity);
         msgView.setText(messageText);
-        msgView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14.0f);
-        msgView.setTextColor(Color.parseColor("#5F6368"));
+        msgView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14.5f);
+        msgView.setTextColor(Color.parseColor("#5A5F68"));
         msgView.setGravity(Gravity.CENTER);
-        msgView.setLineSpacing(0.0f, 1.2f);
+        msgView.setLineSpacing(0.0f, 1.32f);
         LinearLayout.LayoutParams msgParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        msgParams.setMargins(0, dpToPx(activity, 8), 0, dpToPx(activity, 32));
+        msgParams.setMargins(dpToPx(activity, 4), dpToPx(activity, 10), dpToPx(activity, 4), dpToPx(activity, 28));
         msgView.setLayoutParams(msgParams);
 
-        // Action button
-        final Button actionBtn = new Button(activity);
-        actionBtn.setText(buttonText);
-        actionBtn.setTextColor(Color.WHITE);
-        actionBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14.0f);
-        actionBtn.setTypeface(Typeface.DEFAULT_BOLD);
-        actionBtn.setAllCaps(true);
-        actionBtn.setStateListAnimator(null);
-
-        GradientDrawable btnBg = new GradientDrawable();
-        btnBg.setColor(Color.parseColor("#202124"));
-        btnBg.setCornerRadius(dpToPx(activity, 50));
-        actionBtn.setBackground(btnBg);
-
+        // Engaging Shimmer Pill Button (Download / Update / Join)
+        final ShimmerButton actionBtn = new ShimmerButton(activity, buttonText);
         LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dpToPx(activity, 55)
+                dpToPx(activity, 56)
         );
         actionBtn.setLayoutParams(btnParams);
 
-        // Tactile press animation on button
         actionBtn.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 switch (event.getAction()) {
                     case MotionEvent.ACTION_DOWN:
-                        v.animate().scaleX(0.95f).scaleY(0.95f).setDuration(90).start();
+                        v.animate().scaleX(0.95f).scaleY(0.95f).setDuration(85).start();
                         break;
                     case MotionEvent.ACTION_UP:
                     case MotionEvent.ACTION_CANCEL:
                         v.animate().scaleX(1.0f).scaleY(1.0f)
-                                .setInterpolator(new OvershootInterpolator(2.0f))
-                                .setDuration(180)
+                                .setInterpolator(new OvershootInterpolator(2.2f))
+                                .setDuration(200)
                                 .start();
                         break;
                 }
@@ -226,7 +266,8 @@ public class UpdateDialogue {
             }
         });
 
-        cardLayout.addView(iconView);
+        cardLayout.addView(iconContainer);
+        cardLayout.addView(badgeView);
         cardLayout.addView(titleView);
         cardLayout.addView(msgView);
         cardLayout.addView(actionBtn);
@@ -235,26 +276,27 @@ public class UpdateDialogue {
         cardLayout.setAlpha(0f);
         cardLayout.setScaleX(0.84f);
         cardLayout.setScaleY(0.84f);
-        cardLayout.setTranslationY(dpToPx(activity, 24));
+        cardLayout.setTranslationY(dpToPx(activity, 26));
 
-        iconView.setAlpha(0f);
-        iconView.setScaleX(0.5f);
-        iconView.setScaleY(0.5f);
+        iconContainer.setAlpha(0f);
+        iconContainer.setScaleX(0.55f);
+        iconContainer.setScaleY(0.55f);
 
+        prepareSlideFade(badgeView, dpToPx(activity, 10));
         prepareSlideFade(titleView, dpToPx(activity, 12));
         prepareSlideFade(msgView, dpToPx(activity, 14));
-        prepareSlideFade(actionBtn, dpToPx(activity, 16));
+        prepareSlideFade(actionBtn, dpToPx(activity, 18));
 
         dialog.setContentView(cardLayout);
 
         if (window != null) {
             WindowManager.LayoutParams lp = new WindowManager.LayoutParams();
             lp.copyFrom(window.getAttributes());
-            lp.width = (int) (activity.getResources().getDisplayMetrics().widthPixels * 0.85d);
+            lp.width = (int) (activity.getResources().getDisplayMetrics().widthPixels * 0.86d);
             try {
                 dialog.show();
                 window.setAttributes(lp);
-                playEntranceAnimation(cardLayout, iconView, titleView, msgView, actionBtn);
+                playEntranceAnimation(cardLayout, iconContainer, badgeView, titleView, msgView, actionBtn);
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -282,40 +324,39 @@ public class UpdateDialogue {
 
     private static void playEntranceAnimation(
             View card,
-            View icon,
+            View iconContainer,
+            View badge,
             View title,
             View message,
-            View button
+            final View button
     ) {
-        // Card pop-in
-        ObjectAnimator cardAlpha = ObjectAnimator.ofFloat(card, View.ALPHA, 0f, 1f);
-        ObjectAnimator cardScaleX = ObjectAnimator.ofFloat(card, View.SCALE_X, 0.84f, 1f);
-        ObjectAnimator cardScaleY = ObjectAnimator.ofFloat(card, View.SCALE_Y, 0.84f, 1f);
-        ObjectAnimator cardTransY = ObjectAnimator.ofFloat(card, View.TRANSLATION_Y, card.getTranslationY(), 0f);
-
         AnimatorSet cardSet = new AnimatorSet();
-        cardSet.playTogether(cardAlpha, cardScaleX, cardScaleY, cardTransY);
-        cardSet.setDuration(360);
-        cardSet.setInterpolator(new OvershootInterpolator(1.25f));
+        cardSet.playTogether(
+                ObjectAnimator.ofFloat(card, View.ALPHA, 0f, 1f),
+                ObjectAnimator.ofFloat(card, View.SCALE_X, 0.84f, 1f),
+                ObjectAnimator.ofFloat(card, View.SCALE_Y, 0.84f, 1f),
+                ObjectAnimator.ofFloat(card, View.TRANSLATION_Y, card.getTranslationY(), 0f)
+        );
+        cardSet.setDuration(380);
+        cardSet.setInterpolator(new OvershootInterpolator(1.2f));
 
-        // Icon pop
         AnimatorSet iconSet = new AnimatorSet();
         iconSet.playTogether(
-                ObjectAnimator.ofFloat(icon, View.ALPHA, 0f, 1f),
-                ObjectAnimator.ofFloat(icon, View.SCALE_X, 0.5f, 1f),
-                ObjectAnimator.ofFloat(icon, View.SCALE_Y, 0.5f, 1f)
+                ObjectAnimator.ofFloat(iconContainer, View.ALPHA, 0f, 1f),
+                ObjectAnimator.ofFloat(iconContainer, View.SCALE_X, 0.55f, 1f),
+                ObjectAnimator.ofFloat(iconContainer, View.SCALE_Y, 0.55f, 1f)
         );
-        iconSet.setStartDelay(90);
+        iconSet.setStartDelay(85);
         iconSet.setDuration(360);
-        iconSet.setInterpolator(new OvershootInterpolator(1.8f));
+        iconSet.setInterpolator(new OvershootInterpolator(1.75f));
 
-        // Staggered text & button reveal
-        AnimatorSet titleSet = createSlideFadeIn(title, 140, 260);
-        AnimatorSet msgSet = createSlideFadeIn(message, 200, 260);
-        AnimatorSet btnSet = createSlideFadeIn(button, 260, 280);
+        AnimatorSet badgeSet = createSlideFadeIn(badge, 125, 240);
+        AnimatorSet titleSet = createSlideFadeIn(title, 165, 260);
+        AnimatorSet msgSet = createSlideFadeIn(message, 215, 260);
+        AnimatorSet btnSet = createSlideFadeIn(button, 270, 290);
 
         AnimatorSet full = new AnimatorSet();
-        full.playTogether(cardSet, iconSet, titleSet, msgSet, btnSet);
+        full.playTogether(cardSet, iconSet, badgeSet, titleSet, msgSet, btnSet);
         full.addListener(new AnimatorListenerAdapter() {
             @Override
             public void onAnimationEnd(Animator animation) {
@@ -326,17 +367,15 @@ public class UpdateDialogue {
     }
 
     private static void startButtonAttentionPulse(final View button) {
-        ObjectAnimator pulseX = ObjectAnimator.ofFloat(button, View.SCALE_X, 1.0f, 1.035f, 1.0f);
-        ObjectAnimator pulseY = ObjectAnimator.ofFloat(button, View.SCALE_Y, 1.0f, 1.035f, 1.0f);
+        ObjectAnimator pulseX = ObjectAnimator.ofFloat(button, View.SCALE_X, 1.0f, 1.028f, 1.0f);
+        ObjectAnimator pulseY = ObjectAnimator.ofFloat(button, View.SCALE_Y, 1.0f, 1.028f, 1.0f);
         pulseX.setRepeatCount(ValueAnimator.INFINITE);
         pulseY.setRepeatCount(ValueAnimator.INFINITE);
-        pulseX.setRepeatMode(ValueAnimator.RESTART);
-        pulseY.setRepeatMode(ValueAnimator.RESTART);
 
         AnimatorSet pulseSet = new AnimatorSet();
         pulseSet.playTogether(pulseX, pulseY);
-        pulseSet.setDuration(1600);
-        pulseSet.setStartDelay(800);
+        pulseSet.setDuration(1800);
+        pulseSet.setStartDelay(900);
         pulseSet.setInterpolator(new AccelerateDecelerateInterpolator());
         pulseSet.start();
     }
@@ -351,6 +390,172 @@ public class UpdateDialogue {
         set.setDuration(durationMs);
         set.setInterpolator(new DecelerateInterpolator());
         return set;
+    }
+
+    /**
+     * Soft breathing warm halo behind the face icon.
+     */
+    private static class HaloGlowView extends View {
+        private final Paint glowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private ValueAnimator pulseAnimator;
+        private float pulse = 0f;
+
+        public HaloGlowView(Context context) {
+            super(context);
+        }
+
+        @Override
+        protected void onAttachedToWindow() {
+            super.onAttachedToWindow();
+            pulseAnimator = ValueAnimator.ofFloat(0f, (float) (Math.PI * 2.0));
+            pulseAnimator.setDuration(2400);
+            pulseAnimator.setRepeatCount(ValueAnimator.INFINITE);
+            pulseAnimator.setInterpolator(new AccelerateDecelerateInterpolator());
+            pulseAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                @Override
+                public void onAnimationUpdate(ValueAnimator animation) {
+                    pulse = (float) animation.getAnimatedValue();
+                    invalidate();
+                }
+            });
+            pulseAnimator.start();
+        }
+
+        @Override
+        protected void onDetachedFromWindow() {
+            if (pulseAnimator != null) {
+                pulseAnimator.cancel();
+                pulseAnimator = null;
+            }
+            super.onDetachedFromWindow();
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            float w = getWidth();
+            float h = getHeight();
+            if (w <= 0 || h <= 0) {
+                return;
+            }
+            float cx = w / 2f;
+            float cy = h / 2f;
+            float baseRadius = Math.min(w, h) * 0.48f;
+            float radius = baseRadius * (0.94f + 0.06f * (float) Math.sin(pulse));
+
+            RadialGradient gradient = new RadialGradient(
+                    cx, cy, radius,
+                    new int[]{Color.parseColor("#44FFCC4D"), Color.parseColor("#18FFAC33"), Color.TRANSPARENT},
+                    new float[]{0.0f, 0.55f, 1.0f},
+                    Shader.TileMode.CLAMP
+            );
+            glowPaint.setShader(gradient);
+            canvas.drawCircle(cx, cy, radius, glowPaint);
+        }
+    }
+
+    /**
+     * Pill-shaped gradient action button with a periodic diagonal light shimmer sweep.
+     */
+    private static class ShimmerButton extends FrameLayout {
+        private final Paint shimmerPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Path clipPath = new Path();
+        private final RectF boundsRect = new RectF();
+        private final Matrix shimmerMatrix = new Matrix();
+        private LinearGradient shimmerGradient;
+        private ValueAnimator shimmerAnimator;
+        private float shimmerProgress = -1f;
+
+        public ShimmerButton(Context context, String text) {
+            super(context);
+            setWillNotDraw(false);
+            setClickable(true);
+            setFocusable(true);
+
+            GradientDrawable bg = new GradientDrawable(
+                    GradientDrawable.Orientation.TOP_BOTTOM,
+                    new int[]{Color.parseColor("#2A2F3A"), Color.parseColor("#14171D")}
+            );
+            bg.setCornerRadius(dpToPx(context, 50));
+            bg.setStroke(dpToPx(context, 1), Color.parseColor("#383E4B"));
+            setBackground(bg);
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                setElevation(dpToPx(context, 6));
+            }
+
+            TextView label = new TextView(context);
+            label.setText(text);
+            label.setTextColor(Color.WHITE);
+            label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14.5f);
+            label.setTypeface(Typeface.DEFAULT_BOLD);
+            label.setAllCaps(true);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                label.setLetterSpacing(0.06f);
+            }
+            label.setGravity(Gravity.CENTER);
+            LayoutParams lp = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
+            label.setLayoutParams(lp);
+            addView(label);
+        }
+
+        @Override
+        protected void onAttachedToWindow() {
+            super.onAttachedToWindow();
+            shimmerAnimator = ValueAnimator.ofFloat(-0.4f, 1.4f);
+            shimmerAnimator.setDuration(1400);
+            shimmerAnimator.setStartDelay(1200);
+            shimmerAnimator.setRepeatCount(ValueAnimator.INFINITE);
+            shimmerAnimator.setRepeatMode(ValueAnimator.RESTART);
+            shimmerAnimator.setInterpolator(new AccelerateDecelerateInterpolator());
+            shimmerAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                @Override
+                public void onAnimationUpdate(ValueAnimator animation) {
+                    shimmerProgress = (float) animation.getAnimatedValue();
+                    invalidate();
+                }
+            });
+            shimmerAnimator.start();
+        }
+
+        @Override
+        protected void onDetachedFromWindow() {
+            if (shimmerAnimator != null) {
+                shimmerAnimator.cancel();
+                shimmerAnimator = null;
+            }
+            super.onDetachedFromWindow();
+        }
+
+        @Override
+        protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+            super.onSizeChanged(w, h, oldw, oldh);
+            boundsRect.set(0, 0, w, h);
+            float radius = h / 2f;
+            clipPath.reset();
+            clipPath.addRoundRect(boundsRect, radius, radius, Path.Direction.CW);
+            shimmerGradient = new LinearGradient(
+                    0, 0, w * 0.35f, h * 0.25f,
+                    new int[]{Color.TRANSPARENT, Color.parseColor("#32FFFFFF"), Color.TRANSPARENT},
+                    new float[]{0f, 0.5f, 1f},
+                    Shader.TileMode.CLAMP
+            );
+            shimmerPaint.setShader(shimmerGradient);
+        }
+
+        @Override
+        protected void dispatchDraw(Canvas canvas) {
+            super.dispatchDraw(canvas);
+            if (shimmerGradient != null && shimmerProgress >= -0.35f && shimmerProgress <= 1.35f) {
+                canvas.save();
+                canvas.clipPath(clipPath);
+                float dx = shimmerProgress * getWidth();
+                shimmerMatrix.setTranslate(dx, 0);
+                shimmerGradient.setLocalMatrix(shimmerMatrix);
+                canvas.drawRect(boundsRect, shimmerPaint);
+                canvas.restore();
+            }
+        }
     }
 
     /**
@@ -370,7 +575,6 @@ public class UpdateDialogue {
         private Path path;
         private RectF rect;
 
-        // Animated properties
         private float eyeOpenFactor = 1.0f;
         private float floatPhase = 0.0f;
         private float sparklePhase = 0.0f;
