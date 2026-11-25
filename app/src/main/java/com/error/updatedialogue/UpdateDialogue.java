@@ -16,7 +16,6 @@ import android.graphics.LinearGradient;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
-import android.graphics.RadialGradient;
 import android.graphics.RectF;
 import android.graphics.Shader;
 import android.graphics.Typeface;
@@ -30,12 +29,12 @@ import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewOutlineProvider;
 import android.view.Window;
 import android.view.WindowManager;
 import android.view.animation.AccelerateDecelerateInterpolator;
 import android.view.animation.DecelerateInterpolator;
 import android.view.animation.OvershootInterpolator;
-import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -49,12 +48,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Polished, animated Update Dialogue that can be called directly from MainActivity.onCreate().
+ * Ultra-premium animated Update Dialogue with Wink-style minimalist face (no background circle),
+ * twinkling head sparkles, and a stable shimmer action button.
  *
- * Usage:
+ * Usage from MainActivity.onCreate():
  *   UpdateDialogue.checkAndShow(this);
- *   // Or show directly:
- *   UpdateDialogue.show(this, "New Update!", "Update available.", "UPDATE NOW", "https://example.com");
+ *   // Or directly:
+ *   UpdateDialogue.show(this, "New Update!", "Update available.", "DOWNLOAD", "https://example.com");
  */
 public class UpdateDialogue {
     private static final String JSON_URL = "https://pastebin.com/raw/YJVbZS65";
@@ -62,7 +62,7 @@ public class UpdateDialogue {
 
     /**
      * Fetches update config from JSON_URL on a background thread and displays
-     * the animated dialogue if "isVisible" is true. Safe to call from Activity.onCreate().
+     * the dialogue if "isVisible" is true. Safe to call from Activity.onCreate().
      */
     public static void checkAndShow(final Activity activity) {
         if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
@@ -100,7 +100,7 @@ public class UpdateDialogue {
     }
 
     /**
-     * Displays the animated update dialogue immediately with the provided content.
+     * Displays the ultra-premium animated update dialogue immediately.
      * Safe to call from Activity.onCreate() on the main thread.
      */
     @SuppressLint("ClickableViewAccessibility")
@@ -125,58 +125,48 @@ public class UpdateDialogue {
         Window window = dialog.getWindow();
         if (window != null) {
             window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-            window.setDimAmount(0.62f);
+            window.setDimAmount(0.65f);
         }
 
-        // Main card container
+        // Ultra-premium crisp card
         final LinearLayout cardLayout = new LinearLayout(activity);
         cardLayout.setOrientation(LinearLayout.VERTICAL);
         cardLayout.setGravity(Gravity.CENTER_HORIZONTAL);
+        cardLayout.setClipChildren(false);
+        cardLayout.setClipToPadding(false);
+
         int padH = dpToPx(activity, 28);
-        int padTop = dpToPx(activity, 28);
+        int padTop = dpToPx(activity, 30);
         int padBottom = dpToPx(activity, 26);
         cardLayout.setPadding(padH, padTop, padH, padBottom);
 
         GradientDrawable cardBg = new GradientDrawable();
         cardBg.setColor(Color.WHITE);
-        cardBg.setCornerRadius(dpToPx(activity, 28));
-        cardBg.setStroke(dpToPx(activity, 1), Color.parseColor("#ECEEF2"));
+        cardBg.setCornerRadius(dpToPx(activity, 30));
+        cardBg.setStroke(dpToPx(activity, 1), Color.parseColor("#E6E9F0"));
         cardLayout.setBackground(cardBg);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            cardLayout.setElevation(dpToPx(activity, 18));
+            cardLayout.setElevation(dpToPx(activity, 20));
+            cardLayout.setOutlineProvider(ViewOutlineProvider.BACKGROUND);
         }
 
-        // Spotlight halo + original winking/sparkling face
-        FrameLayout iconContainer = new FrameLayout(activity);
-        int haloSize = dpToPx(activity, 100);
-        LinearLayout.LayoutParams haloParams = new LinearLayout.LayoutParams(haloSize, haloSize);
-        haloParams.gravity = Gravity.CENTER_HORIZONTAL;
-        haloParams.bottomMargin = dpToPx(activity, 12);
-        iconContainer.setLayoutParams(haloParams);
+        // Minimalist Wink-style face (no background circle: 2 eyes + mouth + head sparkles)
+        final WinkFaceView faceView = new WinkFaceView(activity);
+        int faceW = dpToPx(activity, 96);
+        int faceH = dpToPx(activity, 76);
+        LinearLayout.LayoutParams faceParams = new LinearLayout.LayoutParams(faceW, faceH);
+        faceParams.gravity = Gravity.CENTER_HORIZONTAL;
+        faceParams.bottomMargin = dpToPx(activity, 12);
+        faceView.setLayoutParams(faceParams);
 
-        final HaloGlowView haloView = new HaloGlowView(activity);
-        haloView.setLayoutParams(new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT
-        ));
-
-        final PerfectEmojiView iconView = new PerfectEmojiView(activity);
-        int iconSize = dpToPx(activity, 72);
-        FrameLayout.LayoutParams iconParams = new FrameLayout.LayoutParams(iconSize, iconSize);
-        iconParams.gravity = Gravity.CENTER;
-        iconView.setLayoutParams(iconParams);
-
-        iconContainer.addView(haloView);
-        iconContainer.addView(iconView);
-
-        // Subtle status pill badge
+        // Minimalist pill tag
         final TextView badgeView = new TextView(activity);
-        badgeView.setText("UPDATE AVAILABLE");
-        badgeView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.5f);
+        badgeView.setText("NEW UPDATE");
+        badgeView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 10.0f);
         badgeView.setTypeface(Typeface.DEFAULT_BOLD);
-        badgeView.setTextColor(Color.parseColor("#A66000"));
+        badgeView.setTextColor(Color.parseColor("#4B5563"));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            badgeView.setLetterSpacing(0.08f);
+            badgeView.setLetterSpacing(0.10f);
         }
         badgeView.setPadding(
                 dpToPx(activity, 12),
@@ -185,7 +175,7 @@ public class UpdateDialogue {
                 dpToPx(activity, 5)
         );
         GradientDrawable badgeBg = new GradientDrawable();
-        badgeBg.setColor(Color.parseColor("#FFF4D8"));
+        badgeBg.setColor(Color.parseColor("#F3F4F7"));
         badgeBg.setCornerRadius(dpToPx(activity, 50));
         badgeView.setBackground(badgeBg);
         LinearLayout.LayoutParams badgeParams = new LinearLayout.LayoutParams(
@@ -201,28 +191,31 @@ public class UpdateDialogue {
         titleView.setText(titleText);
         titleView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22.0f);
         titleView.setTypeface(Typeface.DEFAULT_BOLD);
-        titleView.setTextColor(Color.parseColor("#18191B"));
+        titleView.setTextColor(Color.parseColor("#111318"));
         titleView.setGravity(Gravity.CENTER);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            titleView.setLetterSpacing(-0.01f);
+        }
 
         // Message
         final TextView msgView = new TextView(activity);
         msgView.setText(messageText);
-        msgView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14.5f);
-        msgView.setTextColor(Color.parseColor("#5A5F68"));
+        msgView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14.0f);
+        msgView.setTextColor(Color.parseColor("#646A73"));
         msgView.setGravity(Gravity.CENTER);
-        msgView.setLineSpacing(0.0f, 1.32f);
+        msgView.setLineSpacing(0.0f, 1.38f);
         LinearLayout.LayoutParams msgParams = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        msgParams.setMargins(dpToPx(activity, 4), dpToPx(activity, 10), dpToPx(activity, 4), dpToPx(activity, 28));
+        msgParams.setMargins(dpToPx(activity, 4), dpToPx(activity, 10), dpToPx(activity, 4), dpToPx(activity, 26));
         msgView.setLayoutParams(msgParams);
 
-        // Engaging Shimmer Pill Button (Download / Update / Join)
-        final ShimmerButton actionBtn = new ShimmerButton(activity, buttonText);
+        // Stable, crisp, ultra-premium pill action button (no outer box artifact)
+        final PremiumActionButton actionBtn = new PremiumActionButton(activity, buttonText);
         LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dpToPx(activity, 56)
+                dpToPx(activity, 52)
         );
         actionBtn.setLayoutParams(btnParams);
 
@@ -231,13 +224,13 @@ public class UpdateDialogue {
             public boolean onTouch(View v, MotionEvent event) {
                 switch (event.getAction()) {
                     case MotionEvent.ACTION_DOWN:
-                        v.animate().scaleX(0.95f).scaleY(0.95f).setDuration(85).start();
+                        v.animate().scaleX(0.97f).scaleY(0.97f).setDuration(80).start();
                         break;
                     case MotionEvent.ACTION_UP:
                     case MotionEvent.ACTION_CANCEL:
                         v.animate().scaleX(1.0f).scaleY(1.0f)
-                                .setInterpolator(new OvershootInterpolator(2.2f))
-                                .setDuration(200)
+                                .setInterpolator(new OvershootInterpolator(1.8f))
+                                .setDuration(180)
                                 .start();
                         break;
                 }
@@ -266,26 +259,26 @@ public class UpdateDialogue {
             }
         });
 
-        cardLayout.addView(iconContainer);
+        cardLayout.addView(faceView);
         cardLayout.addView(badgeView);
         cardLayout.addView(titleView);
         cardLayout.addView(msgView);
         cardLayout.addView(actionBtn);
 
-        // Prepare entrance animation initial states
+        // Entrance initial states
         cardLayout.setAlpha(0f);
-        cardLayout.setScaleX(0.84f);
-        cardLayout.setScaleY(0.84f);
-        cardLayout.setTranslationY(dpToPx(activity, 26));
+        cardLayout.setScaleX(0.86f);
+        cardLayout.setScaleY(0.86f);
+        cardLayout.setTranslationY(dpToPx(activity, 24));
 
-        iconContainer.setAlpha(0f);
-        iconContainer.setScaleX(0.55f);
-        iconContainer.setScaleY(0.55f);
+        faceView.setAlpha(0f);
+        faceView.setScaleX(0.65f);
+        faceView.setScaleY(0.65f);
 
-        prepareSlideFade(badgeView, dpToPx(activity, 10));
-        prepareSlideFade(titleView, dpToPx(activity, 12));
-        prepareSlideFade(msgView, dpToPx(activity, 14));
-        prepareSlideFade(actionBtn, dpToPx(activity, 18));
+        prepareSlideFade(badgeView, dpToPx(activity, 8));
+        prepareSlideFade(titleView, dpToPx(activity, 10));
+        prepareSlideFade(msgView, dpToPx(activity, 12));
+        prepareSlideFade(actionBtn, dpToPx(activity, 14));
 
         dialog.setContentView(cardLayout);
 
@@ -296,7 +289,7 @@ public class UpdateDialogue {
             try {
                 dialog.show();
                 window.setAttributes(lp);
-                playEntranceAnimation(cardLayout, iconContainer, badgeView, titleView, msgView, actionBtn);
+                playEntranceAnimation(cardLayout, faceView, badgeView, titleView, msgView, actionBtn);
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -324,60 +317,40 @@ public class UpdateDialogue {
 
     private static void playEntranceAnimation(
             View card,
-            View iconContainer,
+            View face,
             View badge,
             View title,
             View message,
-            final View button
+            View button
     ) {
         AnimatorSet cardSet = new AnimatorSet();
         cardSet.playTogether(
                 ObjectAnimator.ofFloat(card, View.ALPHA, 0f, 1f),
-                ObjectAnimator.ofFloat(card, View.SCALE_X, 0.84f, 1f),
-                ObjectAnimator.ofFloat(card, View.SCALE_Y, 0.84f, 1f),
+                ObjectAnimator.ofFloat(card, View.SCALE_X, 0.86f, 1f),
+                ObjectAnimator.ofFloat(card, View.SCALE_Y, 0.86f, 1f),
                 ObjectAnimator.ofFloat(card, View.TRANSLATION_Y, card.getTranslationY(), 0f)
         );
-        cardSet.setDuration(380);
-        cardSet.setInterpolator(new OvershootInterpolator(1.2f));
+        cardSet.setDuration(360);
+        cardSet.setInterpolator(new OvershootInterpolator(1.15f));
 
-        AnimatorSet iconSet = new AnimatorSet();
-        iconSet.playTogether(
-                ObjectAnimator.ofFloat(iconContainer, View.ALPHA, 0f, 1f),
-                ObjectAnimator.ofFloat(iconContainer, View.SCALE_X, 0.55f, 1f),
-                ObjectAnimator.ofFloat(iconContainer, View.SCALE_Y, 0.55f, 1f)
+        AnimatorSet faceSet = new AnimatorSet();
+        faceSet.playTogether(
+                ObjectAnimator.ofFloat(face, View.ALPHA, 0f, 1f),
+                ObjectAnimator.ofFloat(face, View.SCALE_X, 0.65f, 1f),
+                ObjectAnimator.ofFloat(face, View.SCALE_Y, 0.65f, 1f)
         );
-        iconSet.setStartDelay(85);
-        iconSet.setDuration(360);
-        iconSet.setInterpolator(new OvershootInterpolator(1.75f));
+        faceSet.setStartDelay(80);
+        faceSet.setDuration(340);
+        faceSet.setInterpolator(new OvershootInterpolator(1.6f));
 
-        AnimatorSet badgeSet = createSlideFadeIn(badge, 125, 240);
-        AnimatorSet titleSet = createSlideFadeIn(title, 165, 260);
-        AnimatorSet msgSet = createSlideFadeIn(message, 215, 260);
-        AnimatorSet btnSet = createSlideFadeIn(button, 270, 290);
+        AnimatorSet badgeSet = createSlideFadeIn(badge, 120, 230);
+        AnimatorSet titleSet = createSlideFadeIn(title, 155, 250);
+        AnimatorSet msgSet = createSlideFadeIn(message, 200, 250);
+        AnimatorSet btnSet = createSlideFadeIn(button, 250, 270);
 
         AnimatorSet full = new AnimatorSet();
-        full.playTogether(cardSet, iconSet, badgeSet, titleSet, msgSet, btnSet);
-        full.addListener(new AnimatorListenerAdapter() {
-            @Override
-            public void onAnimationEnd(Animator animation) {
-                startButtonAttentionPulse(button);
-            }
-        });
+        full.playTogether(cardSet, faceSet, badgeSet, titleSet, msgSet, btnSet);
         full.start();
-    }
-
-    private static void startButtonAttentionPulse(final View button) {
-        ObjectAnimator pulseX = ObjectAnimator.ofFloat(button, View.SCALE_X, 1.0f, 1.028f, 1.0f);
-        ObjectAnimator pulseY = ObjectAnimator.ofFloat(button, View.SCALE_Y, 1.0f, 1.028f, 1.0f);
-        pulseX.setRepeatCount(ValueAnimator.INFINITE);
-        pulseY.setRepeatCount(ValueAnimator.INFINITE);
-
-        AnimatorSet pulseSet = new AnimatorSet();
-        pulseSet.playTogether(pulseX, pulseY);
-        pulseSet.setDuration(1800);
-        pulseSet.setStartDelay(900);
-        pulseSet.setInterpolator(new AccelerateDecelerateInterpolator());
-        pulseSet.start();
     }
 
     private static AnimatorSet createSlideFadeIn(View view, long delayMs, long durationMs) {
@@ -393,71 +366,12 @@ public class UpdateDialogue {
     }
 
     /**
-     * Soft breathing warm halo behind the face icon.
+     * Stable, ultra-premium pill action button (extends TextView directly with
+     * clipToOutline so there is never an outer box artifact).
+     * Features a smooth internal diagonal light sheen animation.
      */
-    private static class HaloGlowView extends View {
-        private final Paint glowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private ValueAnimator pulseAnimator;
-        private float pulse = 0f;
-
-        public HaloGlowView(Context context) {
-            super(context);
-        }
-
-        @Override
-        protected void onAttachedToWindow() {
-            super.onAttachedToWindow();
-            pulseAnimator = ValueAnimator.ofFloat(0f, (float) (Math.PI * 2.0));
-            pulseAnimator.setDuration(2400);
-            pulseAnimator.setRepeatCount(ValueAnimator.INFINITE);
-            pulseAnimator.setInterpolator(new AccelerateDecelerateInterpolator());
-            pulseAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-                @Override
-                public void onAnimationUpdate(ValueAnimator animation) {
-                    pulse = (float) animation.getAnimatedValue();
-                    invalidate();
-                }
-            });
-            pulseAnimator.start();
-        }
-
-        @Override
-        protected void onDetachedFromWindow() {
-            if (pulseAnimator != null) {
-                pulseAnimator.cancel();
-                pulseAnimator = null;
-            }
-            super.onDetachedFromWindow();
-        }
-
-        @Override
-        protected void onDraw(Canvas canvas) {
-            super.onDraw(canvas);
-            float w = getWidth();
-            float h = getHeight();
-            if (w <= 0 || h <= 0) {
-                return;
-            }
-            float cx = w / 2f;
-            float cy = h / 2f;
-            float baseRadius = Math.min(w, h) * 0.48f;
-            float radius = baseRadius * (0.94f + 0.06f * (float) Math.sin(pulse));
-
-            RadialGradient gradient = new RadialGradient(
-                    cx, cy, radius,
-                    new int[]{Color.parseColor("#44FFCC4D"), Color.parseColor("#18FFAC33"), Color.TRANSPARENT},
-                    new float[]{0.0f, 0.55f, 1.0f},
-                    Shader.TileMode.CLAMP
-            );
-            glowPaint.setShader(gradient);
-            canvas.drawCircle(cx, cy, radius, glowPaint);
-        }
-    }
-
-    /**
-     * Pill-shaped gradient action button with a periodic diagonal light shimmer sweep.
-     */
-    private static class ShimmerButton extends FrameLayout {
+    @SuppressLint("AppCompatCustomView")
+    private static class PremiumActionButton extends TextView {
         private final Paint shimmerPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Path clipPath = new Path();
         private final RectF boundsRect = new RectF();
@@ -466,45 +380,40 @@ public class UpdateDialogue {
         private ValueAnimator shimmerAnimator;
         private float shimmerProgress = -1f;
 
-        public ShimmerButton(Context context, String text) {
+        public PremiumActionButton(Context context, String text) {
             super(context);
-            setWillNotDraw(false);
+            setText(text);
+            setTextColor(Color.WHITE);
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14.5f);
+            setTypeface(Typeface.DEFAULT_BOLD);
+            setAllCaps(true);
+            setGravity(Gravity.CENTER);
             setClickable(true);
             setFocusable(true);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                setLetterSpacing(0.07f);
+                setStateListAnimator(null);
+            }
 
             GradientDrawable bg = new GradientDrawable(
                     GradientDrawable.Orientation.TOP_BOTTOM,
-                    new int[]{Color.parseColor("#2A2F3A"), Color.parseColor("#14171D")}
+                    new int[]{Color.parseColor("#1E222B"), Color.parseColor("#0E1015")}
             );
             bg.setCornerRadius(dpToPx(context, 50));
-            bg.setStroke(dpToPx(context, 1), Color.parseColor("#383E4B"));
             setBackground(bg);
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                setElevation(dpToPx(context, 6));
+                setOutlineProvider(ViewOutlineProvider.BACKGROUND);
+                setClipToOutline(true);
             }
-
-            TextView label = new TextView(context);
-            label.setText(text);
-            label.setTextColor(Color.WHITE);
-            label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14.5f);
-            label.setTypeface(Typeface.DEFAULT_BOLD);
-            label.setAllCaps(true);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                label.setLetterSpacing(0.06f);
-            }
-            label.setGravity(Gravity.CENTER);
-            LayoutParams lp = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT);
-            label.setLayoutParams(lp);
-            addView(label);
         }
 
         @Override
         protected void onAttachedToWindow() {
             super.onAttachedToWindow();
-            shimmerAnimator = ValueAnimator.ofFloat(-0.4f, 1.4f);
-            shimmerAnimator.setDuration(1400);
-            shimmerAnimator.setStartDelay(1200);
+            shimmerAnimator = ValueAnimator.ofFloat(-0.45f, 1.45f);
+            shimmerAnimator.setDuration(1350);
+            shimmerAnimator.setStartDelay(1000);
             shimmerAnimator.setRepeatCount(ValueAnimator.INFINITE);
             shimmerAnimator.setRepeatMode(ValueAnimator.RESTART);
             shimmerAnimator.setInterpolator(new AccelerateDecelerateInterpolator());
@@ -535,8 +444,8 @@ public class UpdateDialogue {
             clipPath.reset();
             clipPath.addRoundRect(boundsRect, radius, radius, Path.Direction.CW);
             shimmerGradient = new LinearGradient(
-                    0, 0, w * 0.35f, h * 0.25f,
-                    new int[]{Color.TRANSPARENT, Color.parseColor("#32FFFFFF"), Color.TRANSPARENT},
+                    0, 0, w * 0.32f, h * 0.25f,
+                    new int[]{Color.TRANSPARENT, Color.parseColor("#2EFFFFFF"), Color.TRANSPARENT},
                     new float[]{0f, 0.5f, 1f},
                     Shader.TileMode.CLAMP
             );
@@ -544,9 +453,9 @@ public class UpdateDialogue {
         }
 
         @Override
-        protected void dispatchDraw(Canvas canvas) {
-            super.dispatchDraw(canvas);
-            if (shimmerGradient != null && shimmerProgress >= -0.35f && shimmerProgress <= 1.35f) {
+        protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            if (shimmerGradient != null && shimmerProgress >= -0.4f && shimmerProgress <= 1.4f) {
                 canvas.save();
                 canvas.clipPath(clipPath);
                 float dx = shimmerProgress * getWidth();
@@ -559,19 +468,18 @@ public class UpdateDialogue {
     }
 
     /**
-     * Original PerfectEmojiView face design with added animations:
-     * - Periodic natural eye blink (including double-blink)
-     * - Gentle floating motion
-     * - Twinkling & rotating gold sparkles
+     * Minimalist Wink-style face with NO background circle:
+     * - 2 expressive eyes (one blinking oval eye, one happy winking arc eye)
+     * - 1 smooth curved smiling mouth
+     * - Twinkling & rotating gold sparkles above the head
      */
-    private static class PerfectEmojiView extends View {
-        private final int COLOR_FACE = Color.parseColor("#FFCC4D");
-        private final int COLOR_FEATURE = Color.parseColor("#664500");
-        private final int COLOR_SPARKLE = Color.parseColor("#FFAC33");
+    private static class WinkFaceView extends View {
+        private static final int COLOR_FEATURE = Color.parseColor("#181A20");
+        private static final int COLOR_SPARKLE = Color.parseColor("#FFB300");
+        private static final int COLOR_SPARKLE_SOFT = Color.parseColor("#FFCC4D");
 
-        private Paint yellowPaint;
-        private Paint brownPaint;
-        private Paint goldPaint;
+        private Paint featurePaint;
+        private Paint sparklePaint;
         private Path path;
         private RectF rect;
 
@@ -591,28 +499,24 @@ public class UpdateDialogue {
                 blinkCounter++;
                 boolean doubleBlink = (blinkCounter % 3 == 0);
                 triggerBlink(doubleBlink);
-                blinkHandler.postDelayed(this, 2600);
+                blinkHandler.postDelayed(this, 2500);
             }
         };
 
-        public PerfectEmojiView(Context context) {
+        public WinkFaceView(Context context) {
             super(context);
             init();
         }
 
         private void init() {
-            yellowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-            yellowPaint.setColor(COLOR_FACE);
-            yellowPaint.setStyle(Paint.Style.FILL);
+            featurePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            featurePaint.setColor(COLOR_FEATURE);
+            featurePaint.setStrokeCap(Paint.Cap.ROUND);
+            featurePaint.setStrokeJoin(Paint.Join.ROUND);
 
-            brownPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-            brownPaint.setColor(COLOR_FEATURE);
-            brownPaint.setStyle(Paint.Style.FILL);
-            brownPaint.setStrokeCap(Paint.Cap.ROUND);
-
-            goldPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-            goldPaint.setColor(COLOR_SPARKLE);
-            goldPaint.setStyle(Paint.Style.FILL);
+            sparklePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            sparklePaint.setColor(COLOR_SPARKLE);
+            sparklePaint.setStyle(Paint.Style.FILL);
 
             path = new Path();
             rect = new RectF();
@@ -647,7 +551,7 @@ public class UpdateDialogue {
             floatAnimator.start();
 
             sparkleAnimator = ValueAnimator.ofFloat(0f, (float) (Math.PI * 2.0));
-            sparkleAnimator.setDuration(1800);
+            sparkleAnimator.setDuration(1900);
             sparkleAnimator.setRepeatCount(ValueAnimator.INFINITE);
             sparkleAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
                 @Override
@@ -658,7 +562,7 @@ public class UpdateDialogue {
             });
             sparkleAnimator.start();
 
-            blinkHandler.postDelayed(blinkRunnable, 900);
+            blinkHandler.postDelayed(blinkRunnable, 850);
         }
 
         private void stopAnimations() {
@@ -682,7 +586,7 @@ public class UpdateDialogue {
                 blinkAnimator.cancel();
             }
             blinkAnimator = ValueAnimator.ofFloat(1.0f, 0.06f, 1.0f);
-            blinkAnimator.setDuration(190);
+            blinkAnimator.setDuration(185);
             blinkAnimator.setInterpolator(new AccelerateDecelerateInterpolator());
             blinkAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
                 @Override
@@ -717,53 +621,58 @@ public class UpdateDialogue {
             }
 
             float cx = w / 2.0f;
-            float bobOffset = (float) Math.sin(floatPhase) * dpToPx(2.0f);
-            float cy = (h / 2.0f) + bobOffset;
-            float faceRadius = Math.min(w, h) / 2.5f;
+            float bobOffset = (float) Math.sin(floatPhase) * dpToPx(1.8f);
+            float cy = (h * 0.56f) + bobOffset;
+            float unit = Math.min(w, h) * 0.36f;
 
-            // Original yellow face circle
-            canvas.drawCircle(cx, cy, faceRadius, yellowPaint);
+            // --- Eyes (no background circle) ---
+            float eyeY = cy - (unit * 0.16f);
+            float eyeOffset = unit * 0.44f;
 
-            // Eyes
-            float eyeY = cy - (faceRadius * 0.15f);
-            float eyeOffset = faceRadius * 0.35f;
-            float eyeW = 0.15f * faceRadius;
-            float eyeH = faceRadius * 0.22f * eyeOpenFactor;
-
-            // Right eye (blinks)
-            brownPaint.setStyle(Paint.Style.FILL);
+            // Right eye (smooth blinking oval)
+            float eyeW = unit * 0.16f;
+            float eyeH = unit * 0.24f * eyeOpenFactor;
+            featurePaint.setStyle(Paint.Style.FILL);
             rect.set((cx + eyeOffset) - eyeW, eyeY - eyeH, cx + eyeOffset + eyeW, eyeY + eyeH);
-            canvas.drawOval(rect, brownPaint);
+            canvas.drawOval(rect, featurePaint);
 
-            // Left eye (original winking arc)
-            brownPaint.setStyle(Paint.Style.STROKE);
-            brownPaint.setStrokeWidth(faceRadius * 0.08f);
-            float winkRadius = 0.18f * faceRadius;
-            rect.set((cx - eyeOffset) - winkRadius, eyeY - winkRadius, (cx - eyeOffset) + winkRadius, eyeY + winkRadius);
+            // Left eye (happy winking arc)
+            featurePaint.setStyle(Paint.Style.STROKE);
+            featurePaint.setStrokeWidth(unit * 0.10f);
+            float winkR = unit * 0.21f;
+            rect.set((cx - eyeOffset) - winkR, eyeY - winkR, (cx - eyeOffset) + winkR, eyeY + winkR);
             path.reset();
-            path.addArc(rect, 180.0f, 180.0f);
-            path.offset(0.0f, 0.05f * faceRadius);
-            canvas.drawPath(path, brownPaint);
+            path.addArc(rect, 190.0f, 160.0f);
+            path.offset(0.0f, unit * 0.06f);
+            canvas.drawPath(path, featurePaint);
 
-            // Original smiling mouth
-            brownPaint.setStyle(Paint.Style.FILL);
-            float mouthRadius = 0.5f * faceRadius;
-            rect.set(cx - mouthRadius, cy - (0.2f * mouthRadius), cx + mouthRadius, cy + (1.2f * mouthRadius));
+            // --- Smiling mouth ---
+            float mouthW = unit * 0.54f;
+            float mouthTop = cy + (unit * 0.02f);
+            float mouthBottom = cy + (unit * 0.62f);
+            rect.set(cx - mouthW, mouthTop, cx + mouthW, mouthBottom);
             path.reset();
-            path.addArc(rect, 30.0f, 120.0f);
-            brownPaint.setStyle(Paint.Style.STROKE);
-            brownPaint.setStrokeWidth(0.08f * faceRadius);
-            canvas.drawPath(path, brownPaint);
-            brownPaint.setStyle(Paint.Style.FILL);
+            path.addArc(rect, 25.0f, 130.0f);
+            featurePaint.setStrokeWidth(unit * 0.10f);
+            canvas.drawPath(path, featurePaint);
 
-            // Original two gold sparkles with twinkle animation
-            float s1Scale = 0.65f + 0.45f * (float) Math.sin(sparklePhase);
-            float s1Rot = 12.0f * (float) Math.sin(sparklePhase);
-            drawSparkle(canvas, (1.1f * faceRadius) + cx, cy - (0.9f * faceRadius), 0.35f * faceRadius * s1Scale, s1Rot);
+            // --- Sparkles on the head ---
+            // Main top-right sparkle
+            float s1Scale = 0.68f + 0.42f * (float) Math.sin(sparklePhase);
+            float s1Rot = 14.0f * (float) Math.sin(sparklePhase);
+            sparklePaint.setColor(COLOR_SPARKLE);
+            drawSparkle(canvas, cx + (unit * 0.92f), cy - (unit * 0.92f), unit * 0.48f * s1Scale, s1Rot);
 
-            float s2Scale = 0.65f + 0.45f * (float) Math.sin(sparklePhase + Math.PI);
-            float s2Rot = -12.0f * (float) Math.sin(sparklePhase);
-            drawSparkle(canvas, cx - (1.0f * faceRadius), cy - (0.8f * faceRadius), 0.22f * faceRadius * s2Scale, s2Rot);
+            // Secondary top-left sparkle
+            float s2Scale = 0.68f + 0.42f * (float) Math.sin(sparklePhase + Math.PI);
+            float s2Rot = -14.0f * (float) Math.sin(sparklePhase);
+            sparklePaint.setColor(COLOR_SPARKLE_SOFT);
+            drawSparkle(canvas, cx - (unit * 0.86f), cy - (unit * 0.82f), unit * 0.32f * s2Scale, s2Rot);
+
+            // Tiny crown sparkle on top-center
+            float s3Scale = 0.60f + 0.45f * (float) Math.sin(sparklePhase + (Math.PI * 0.5));
+            sparklePaint.setColor(COLOR_SPARKLE);
+            drawSparkle(canvas, cx + (unit * 0.14f), cy - (unit * 1.12f), unit * 0.24f * s3Scale, s1Rot * 0.5f);
         }
 
         private void drawSparkle(Canvas canvas, float cx, float cy, float size, float rotationDeg) {
@@ -780,7 +689,7 @@ public class UpdateDialogue {
             path.quadTo(cx, cy, cx - halfSize, cy);
             path.quadTo(cx, cy, cx, cy - halfSize);
             path.close();
-            canvas.drawPath(path, goldPaint);
+            canvas.drawPath(path, sparklePaint);
             canvas.restore();
         }
 
