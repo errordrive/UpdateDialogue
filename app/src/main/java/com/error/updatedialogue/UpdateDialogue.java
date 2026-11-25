@@ -135,9 +135,9 @@ public class UpdateDialogue {
         cardBg.setCornerRadius(dpToPx(activity, 24));
         cardLayout.setBackground(cardBg);
 
-        // Animated winking & sparkling emoji view
-        final AnimatedEmojiView iconView = new AnimatedEmojiView(activity);
-        int iconSize = dpToPx(activity, 80);
+        // Original winking & sparkling face view (with animations)
+        final PerfectEmojiView iconView = new PerfectEmojiView(activity);
+        int iconSize = dpToPx(activity, 72);
         LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(iconSize, iconSize);
         iconParams.gravity = Gravity.CENTER_HORIZONTAL;
         iconParams.bottomMargin = dpToPx(activity, 16);
@@ -157,12 +157,12 @@ public class UpdateDialogue {
         msgView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14.0f);
         msgView.setTextColor(Color.parseColor("#5F6368"));
         msgView.setGravity(Gravity.CENTER);
-        msgView.setLineSpacing(0.0f, 1.25f);
+        msgView.setLineSpacing(0.0f, 1.2f);
         LinearLayout.LayoutParams msgParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        msgParams.setMargins(0, dpToPx(activity, 8), 0, dpToPx(activity, 28));
+        msgParams.setMargins(0, dpToPx(activity, 8), 0, dpToPx(activity, 32));
         msgView.setLayoutParams(msgParams);
 
         // Action button
@@ -181,7 +181,7 @@ public class UpdateDialogue {
 
         LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                dpToPx(activity, 54)
+                dpToPx(activity, 55)
         );
         actionBtn.setLayoutParams(btnParams);
 
@@ -325,22 +325,19 @@ public class UpdateDialogue {
     }
 
     /**
-     * Custom animated emoji view with:
+     * Original PerfectEmojiView face design with added animations:
      * - Periodic natural eye blink (including double-blink)
-     * - Gentle floating & breathing motion
+     * - Gentle floating motion
      * - Twinkling & rotating gold sparkles
-     * - Soft pulsing cheek blush
      */
-    private static class AnimatedEmojiView extends View {
-        private static final int COLOR_FACE = Color.parseColor("#FFCC4D");
-        private static final int COLOR_FEATURE = Color.parseColor("#664500");
-        private static final int COLOR_SPARKLE = Color.parseColor("#FFAC33");
-        private static final int COLOR_BLUSH = Color.parseColor("#FF7892");
+    private static class PerfectEmojiView extends View {
+        private final int COLOR_FACE = Color.parseColor("#FFCC4D");
+        private final int COLOR_FEATURE = Color.parseColor("#664500");
+        private final int COLOR_SPARKLE = Color.parseColor("#FFAC33");
 
         private Paint yellowPaint;
         private Paint brownPaint;
         private Paint goldPaint;
-        private Paint blushPaint;
         private Path path;
         private RectF rect;
 
@@ -365,7 +362,7 @@ public class UpdateDialogue {
             }
         };
 
-        public AnimatedEmojiView(Context context) {
+        public PerfectEmojiView(Context context) {
             super(context);
             init();
         }
@@ -383,11 +380,6 @@ public class UpdateDialogue {
             goldPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
             goldPaint.setColor(COLOR_SPARKLE);
             goldPaint.setStyle(Paint.Style.FILL);
-
-            blushPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-            blushPaint.setColor(COLOR_BLUSH);
-            blushPaint.setStyle(Paint.Style.FILL);
-            blushPaint.setAlpha(60);
 
             path = new Path();
             rect = new RectF();
@@ -408,7 +400,6 @@ public class UpdateDialogue {
         private void startAnimations() {
             stopAnimations();
 
-            // Gentle float & breathing loop
             floatAnimator = ValueAnimator.ofFloat(0f, (float) (Math.PI * 2.0));
             floatAnimator.setDuration(2400);
             floatAnimator.setRepeatCount(ValueAnimator.INFINITE);
@@ -422,7 +413,6 @@ public class UpdateDialogue {
             });
             floatAnimator.start();
 
-            // Sparkle twinkle loop
             sparkleAnimator = ValueAnimator.ofFloat(0f, (float) (Math.PI * 2.0));
             sparkleAnimator.setDuration(1800);
             sparkleAnimator.setRepeatCount(ValueAnimator.INFINITE);
@@ -435,7 +425,6 @@ public class UpdateDialogue {
             });
             sparkleAnimator.start();
 
-            // Periodic eye blink
             blinkHandler.postDelayed(blinkRunnable, 900);
         }
 
@@ -495,25 +484,12 @@ public class UpdateDialogue {
             }
 
             float cx = w / 2.0f;
-            float bobOffset = (float) Math.sin(floatPhase) * dpToPx(2.5f);
+            float bobOffset = (float) Math.sin(floatPhase) * dpToPx(2.0f);
             float cy = (h / 2.0f) + bobOffset;
-            float breathScale = 1.0f + 0.02f * (float) Math.sin(floatPhase * 2.0f);
-            float faceRadius = (Math.min(w, h) / 2.6f) * breathScale;
+            float faceRadius = Math.min(w, h) / 2.5f;
 
-            // Face circle
+            // Original yellow face circle
             canvas.drawCircle(cx, cy, faceRadius, yellowPaint);
-
-            // Soft pulsing cheek blush
-            int blushAlpha = (int) (45 + 25 * (0.5f + 0.5f * Math.sin(floatPhase)));
-            blushPaint.setAlpha(blushAlpha);
-            float blushY = cy + (faceRadius * 0.16f);
-            float blushOffsetX = faceRadius * 0.52f;
-            float blushRx = faceRadius * 0.16f;
-            float blushRy = faceRadius * 0.10f;
-            rect.set(cx - blushOffsetX - blushRx, blushY - blushRy, cx - blushOffsetX + blushRx, blushY + blushRy);
-            canvas.drawOval(rect, blushPaint);
-            rect.set(cx + blushOffsetX - blushRx, blushY - blushRy, cx + blushOffsetX + blushRx, blushY + blushRy);
-            canvas.drawOval(rect, blushPaint);
 
             // Eyes
             float eyeY = cy - (faceRadius * 0.15f);
@@ -521,12 +497,12 @@ public class UpdateDialogue {
             float eyeW = 0.15f * faceRadius;
             float eyeH = faceRadius * 0.22f * eyeOpenFactor;
 
-            // Right eye (blinks smoothly!)
+            // Right eye (blinks)
             brownPaint.setStyle(Paint.Style.FILL);
             rect.set((cx + eyeOffset) - eyeW, eyeY - eyeH, cx + eyeOffset + eyeW, eyeY + eyeH);
             canvas.drawOval(rect, brownPaint);
 
-            // Left eye (winking arc)
+            // Left eye (original winking arc)
             brownPaint.setStyle(Paint.Style.STROKE);
             brownPaint.setStrokeWidth(faceRadius * 0.08f);
             float winkRadius = 0.18f * faceRadius;
@@ -536,35 +512,25 @@ public class UpdateDialogue {
             path.offset(0.0f, 0.05f * faceRadius);
             canvas.drawPath(path, brownPaint);
 
-            // Smiling mouth
+            // Original smiling mouth
+            brownPaint.setStyle(Paint.Style.FILL);
             float mouthRadius = 0.5f * faceRadius;
             rect.set(cx - mouthRadius, cy - (0.2f * mouthRadius), cx + mouthRadius, cy + (1.2f * mouthRadius));
             path.reset();
             path.addArc(rect, 30.0f, 120.0f);
+            brownPaint.setStyle(Paint.Style.STROKE);
             brownPaint.setStrokeWidth(0.08f * faceRadius);
             canvas.drawPath(path, brownPaint);
             brownPaint.setStyle(Paint.Style.FILL);
 
-            // Twinkling sparkles (out of phase)
+            // Original two gold sparkles with twinkle animation
             float s1Scale = 0.65f + 0.45f * (float) Math.sin(sparklePhase);
-            float s1Rot = 14.0f * (float) Math.sin(sparklePhase);
-            drawSparkle(
-                    canvas,
-                    cx + (1.08f * faceRadius),
-                    cy - (0.88f * faceRadius),
-                    0.36f * faceRadius * s1Scale,
-                    s1Rot
-            );
+            float s1Rot = 12.0f * (float) Math.sin(sparklePhase);
+            drawSparkle(canvas, (1.1f * faceRadius) + cx, cy - (0.9f * faceRadius), 0.35f * faceRadius * s1Scale, s1Rot);
 
             float s2Scale = 0.65f + 0.45f * (float) Math.sin(sparklePhase + Math.PI);
-            float s2Rot = -14.0f * (float) Math.sin(sparklePhase);
-            drawSparkle(
-                    canvas,
-                    cx - (1.02f * faceRadius),
-                    cy - (0.78f * faceRadius),
-                    0.24f * faceRadius * s2Scale,
-                    s2Rot
-            );
+            float s2Rot = -12.0f * (float) Math.sin(sparklePhase);
+            drawSparkle(canvas, cx - (1.0f * faceRadius), cy - (0.8f * faceRadius), 0.22f * faceRadius * s2Scale, s2Rot);
         }
 
         private void drawSparkle(Canvas canvas, float cx, float cy, float size, float rotationDeg) {
