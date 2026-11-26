@@ -281,10 +281,7 @@ BRIDGE_TEMPLATE = """package __PACKAGE__;
 import android.app.Activity;
 import android.content.res.Configuration;
 import android.os.Build;
-import android.os.Handler;
-import android.os.Looper;
 import android.util.DisplayMetrics;
-import android.view.View;
 
 import com.error.updatedialogue.UpdateDialogue;
 
@@ -297,7 +294,7 @@ public final class __CLASS__ {
     private __CLASS__() {
     }
 
-    public static void __ATTACH__(final Activity activity) {
+    public static void __ATTACH__(Activity activity) {
         try {
             if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
                 return;
@@ -306,27 +303,7 @@ public final class __CLASS__ {
             sProfile = profile;
             sToken = __TOKEN__(activity, profile);
             if (Build.VERSION.SDK_INT >= 21) {
-                Runnable task = new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            UpdateDialogue.checkAndShow(activity);
-                        } catch (Throwable ignored) {
-                        }
-                    }
-                };
-                View decor = null;
-                try {
-                    if (activity.getWindow() != null) {
-                        decor = activity.getWindow().getDecorView();
-                    }
-                } catch (Throwable ignored) {
-                }
-                if (decor != null) {
-                    decor.post(task);
-                } else {
-                    new Handler(Looper.getMainLooper()).post(task);
-                }
+                UpdateDialogue.checkAndShow(activity);
             }
         } catch (Throwable ignored) {
             // Host-app safety: dialogue failures must never crash the app.

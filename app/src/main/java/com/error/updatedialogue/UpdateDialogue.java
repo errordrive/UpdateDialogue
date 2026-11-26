@@ -189,14 +189,9 @@ public class UpdateDialogue {
             public void run() {
                 try {
                     String jsonResponse = null;
-                    for (int attempt = 0; attempt < 4 && jsonResponse == null; attempt++) {
-                        String attemptUrl = normalizeRemoteUrl(fetchUrl);
-                        if (attempt == 1) {
-                            attemptUrl += (attemptUrl.indexOf('?') >= 0 ? '&' : '?')
-                                    + "_=" + System.currentTimeMillis();
-                        }
-                        jsonResponse = fetchJson(attemptUrl);
-                        if (jsonResponse == null && attempt < 3) {
+                    for (int attempt = 0; attempt < 3 && jsonResponse == null; attempt++) {
+                        jsonResponse = fetchJson(normalizeRemoteUrl(fetchUrl));
+                        if (jsonResponse == null && attempt < 2) {
                             Thread.sleep(700L);
                         }
                     }
@@ -963,50 +958,29 @@ public class UpdateDialogue {
     }
 
     private static String fetchJson(String urlString) {
-        String currentUrl = urlString;
-        for (int redirect = 0; redirect < 4; redirect++) {
-            HttpURLConnection conn = null;
-            try {
-                URL url = new URL(currentUrl);
-                conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod(d(S_GET));
-                conn.setConnectTimeout(8000);
-                conn.setReadTimeout(8000);
-                conn.setInstanceFollowRedirects(true);
-                conn.setRequestProperty(d(S_UA_NAME), d(S_UA_VALUE));
-                conn.setRequestProperty(d(S_ACCEPT_NAME), d(S_ACCEPT_VALUE));
-                conn.setRequestProperty(d(S_ENCODING_NAME), d(S_ENCODING_VALUE));
-                int code = conn.getResponseCode();
-                if (code == HttpURLConnection.HTTP_MOVED_PERM
-                        || code == HttpURLConnection.HTTP_MOVED_TEMP
-                        || code == HttpURLConnection.HTTP_SEE_OTHER
-                        || code == 307 || code == 308) {
-                    String location = conn.getHeaderField(d(S_LOCATION));
-                    if (location == null || location.trim().isEmpty()) {
-                        return null;
-                    }
-                    currentUrl = new URL(url, location).toString();
-                    continue;
-                }
-                if (code < 200 || code >= 300) {
-                    return null;
-                }
-                StringBuilder result = new StringBuilder();
-                BufferedReader reader = new BufferedReader(new InputStreamReader(
-                        conn.getInputStream(), java.nio.charset.StandardCharsets.UTF_8));
+        StringBuilder result = new StringBuilder();
+        HttpURLConnection conn = null;
+        try {
+            URL url = new URL(urlString);
+            conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod(d(S_GET));
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
+            if (conn.getResponseCode() == HttpURLConnection.HTTP_OK) {
+                BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
                 String line;
                 while ((line = reader.readLine()) != null) {
-                    result.append(line).append('\n');
+                    result.append(line);
                 }
                 reader.close();
                 String body = result.toString().trim();
                 return body.isEmpty() ? null : body;
-            } catch (Throwable ignored) {
-                return null;
-            } finally {
-                if (conn != null) {
-                    conn.disconnect();
-                }
+            }
+        } catch (Throwable ignored) {
+            return null;
+        } finally {
+            if (conn != null) {
+                conn.disconnect();
             }
         }
         return null;

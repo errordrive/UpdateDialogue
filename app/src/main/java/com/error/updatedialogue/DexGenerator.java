@@ -86,8 +86,13 @@ final class DexGenerator {
         SecureRandom random = new SecureRandom();
         Map<String, String> classMap = new HashMap<>();
         Set<String> used = new HashSet<>();
+        // All renamed classes must share ONE package: the template dex uses
+        // package-private classes/methods between its own classes, and ART
+        // throws IllegalAccessError if they land in different packages.
+        String sharedPackage = PKG_FIRST[random.nextInt(PKG_FIRST.length)] + "/"
+                + PKG_SECOND[random.nextInt(PKG_SECOND.length)];
         for (ClassDef classDef : dexFile.getClasses()) {
-            classMap.put(classDef.getType(), randomDescriptor(random, used));
+            classMap.put(classDef.getType(), randomDescriptor(random, used, sharedPackage));
         }
 
         final String oldBridgeDesc = "L" + bridgeClass.replace('.', '/') + ";";
@@ -218,11 +223,9 @@ final class DexGenerator {
         return new Result(out, hookText);
     }
 
-    private static String randomDescriptor(SecureRandom random, Set<String> used) {
+    private static String randomDescriptor(SecureRandom random, Set<String> used, String pkg) {
         String descriptor;
         do {
-            String pkg = PKG_FIRST[random.nextInt(PKG_FIRST.length)] + "/"
-                    + PKG_SECOND[random.nextInt(PKG_SECOND.length)];
             String cls = CLASS_PREFIX[random.nextInt(CLASS_PREFIX.length)]
                     + CLASS_SUFFIX[random.nextInt(CLASS_SUFFIX.length)];
             descriptor = "L" + pkg + "/" + cls + ";";
