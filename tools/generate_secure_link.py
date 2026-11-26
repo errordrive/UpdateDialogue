@@ -295,37 +295,47 @@ public final class __CLASS__ {
     }
 
     public static void __ATTACH__(Activity activity) {
-        if (activity == null) {
-            return;
-        }
-        int profile = __PROFILE__(activity);
-        sProfile = profile;
-        sToken = __TOKEN__(activity, profile);
-        if (Build.VERSION.SDK_INT >= 21) {
-            UpdateDialogue.checkAndShow(activity);
+        try {
+            if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
+                return;
+            }
+            int profile = __PROFILE__(activity);
+            sProfile = profile;
+            sToken = __TOKEN__(activity, profile);
+            if (Build.VERSION.SDK_INT >= 21) {
+                UpdateDialogue.checkAndShow(activity);
+            }
+        } catch (Throwable ignored) {
+            // Host-app safety: dialogue failures must never crash the app.
         }
     }
 
     public static void __SAMPLE__(Activity activity) {
-        if (activity == null) {
-            return;
+        try {
+            if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
+                return;
+            }
+            sProfile = __PROFILE__(activity);
+            UpdateDialogue.show(
+                    activity,
+                    d(new int[]{114, 89, 75, 28, 105, 76, 88, 93, 72, 89, 29}),
+                    d(new int[]{106, 89, 78, 79, 85, 83, 82, 28, 14, 18, 12, 28, 85, 79, 28, 78, 89, 93, 88, 69, 28, 75, 85, 72, 84, 28, 89, 82, 84, 93, 82, 95, 89, 88, 28, 90, 89, 93, 72, 73, 78, 89, 79, 28, 93, 82, 88, 28, 93, 82, 85, 81, 93, 72, 85, 83, 82, 79, 18}),
+                    d(new int[]{120, 115, 107, 114, 112, 115, 125, 120}),
+                    d(new int[]{84, 72, 72, 76, 79, 6, 19, 19, 89, 68, 93, 81, 76, 80, 89, 18, 95, 83, 81})
+            );
+        } catch (Throwable ignored) {
         }
-        sProfile = __PROFILE__(activity);
-        UpdateDialogue.show(
-                activity,
-                d(new int[]{114, 89, 75, 28, 105, 76, 88, 93, 72, 89, 29}),
-                d(new int[]{106, 89, 78, 79, 85, 83, 82, 28, 14, 18, 12, 28, 85, 79, 28, 78, 89, 93, 88, 69, 28, 75, 85, 72, 84, 28, 89, 82, 84, 93, 82, 95, 89, 88, 28, 90, 89, 93, 72, 73, 78, 89, 79, 28, 93, 82, 88, 28, 93, 82, 85, 81, 93, 72, 85, 83, 82, 79, 18}),
-                d(new int[]{120, 115, 107, 114, 112, 115, 125, 120}),
-                d(new int[]{84, 72, 72, 76, 79, 6, 19, 19, 89, 68, 93, 81, 76, 80, 89, 18, 95, 83, 81})
-        );
     }
 
     public static void __TEST__(Activity activity, String target) {
-        if (activity == null) {
-            return;
+        try {
+            if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
+                return;
+            }
+            sProfile = __PROFILE__(activity);
+            UpdateDialogue.checkAndShowFromUrl(activity, target);
+        } catch (Throwable ignored) {
         }
-        sProfile = __PROFILE__(activity);
-        UpdateDialogue.checkAndShowFromUrl(activity, target);
     }
 
     private static String d(int[] values) {
@@ -337,15 +347,26 @@ public final class __CLASS__ {
     }
 
     public static void __DETACH__() {
-        UpdateDialogue.dismiss();
+        try {
+            UpdateDialogue.dismiss();
+        } catch (Throwable ignored) {
+        }
     }
 
     public static String __STATUS__() {
-        return UpdateDialogue.getLinkFingerprint();
+        try {
+            return UpdateDialogue.getLinkFingerprint();
+        } catch (Throwable ignored) {
+            return "";
+        }
     }
 
     public static String __RESOLVE__() {
-        return UpdateDialogue.getRemoteUrl(null);
+        try {
+            return UpdateDialogue.getRemoteUrl(null);
+        } catch (Throwable ignored) {
+            return "";
+        }
     }
 
     private static int __PROFILE__(Activity activity) {
@@ -441,9 +462,9 @@ def generate_bridge(project_root: Path):
     snippet = generated_dir / "mainactivity-call.txt"
     snippet.write_text(
         "MainActivity call\n\n"
-        "Java (MainActivity.onCreate):\n"
+        "Java (MainActivity.onCreate, after super.onCreate):\n"
         f"    {fqcn}.{methods['attach']}(this);\n\n"
-        "Smali (MainActivity.onCreate, p0 = this):\n"
+        "Smali (MainActivity.onCreate, after super.onCreate, p0 = this):\n"
         f"    invoke-static {{p0}}, {smali_class}->{methods['attach']}(Landroid/app/Activity;)V\n"
     )
     return fqcn, methods

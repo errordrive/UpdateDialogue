@@ -8,12 +8,16 @@ import org.jf.dexlib2.Opcodes;
 import org.jf.dexlib2.Opcode;
 import org.jf.dexlib2.iface.ClassDef;
 import org.jf.dexlib2.iface.DexFile;
+import org.jf.dexlib2.iface.Method;
 import org.jf.dexlib2.iface.instruction.Instruction;
 import org.jf.dexlib2.iface.instruction.formats.Instruction21c;
+import org.jf.dexlib2.iface.reference.MethodReference;
 import org.jf.dexlib2.iface.reference.StringReference;
 import org.jf.dexlib2.iface.value.EncodedValue;
 import org.jf.dexlib2.iface.value.StringEncodedValue;
+import org.jf.dexlib2.immutable.ImmutableMethod;
 import org.jf.dexlib2.immutable.instruction.ImmutableInstruction21c;
+import org.jf.dexlib2.immutable.reference.ImmutableMethodReference;
 import org.jf.dexlib2.immutable.reference.ImmutableStringReference;
 import org.jf.dexlib2.immutable.value.ImmutableStringEncodedValue;
 import org.jf.dexlib2.rewriter.DexRewriter;
@@ -41,8 +45,9 @@ import java.util.Set;
  *   1. builds a fresh locked-link blob for the entered URL
  *      (new salt + new RSA key pair + SHA-256 + signature),
  *   2. rewrites the template dialogue dex: every defined class gets a
- *      fresh randomized framework-neutral name and the old blob string
- *      is replaced with the new blob,
+ *      fresh randomized framework-neutral name, the entry method gets a
+ *      fresh randomized verb, and the old blob string is replaced with
+ *      the new blob,
  *   3. returns the rewritten dex plus the matching MainActivity hook.
  * The generated dex therefore works exactly like the template, but no
  * two generated outputs share class names or hook text.
@@ -63,6 +68,7 @@ final class DexGenerator {
     private static final String[] PKG_SECOND = {"lifecycle", "bootstrap", "window", "config", "init", "compat"};
     private static final String[] CLASS_PREFIX = {"Window", "Lifecycle", "Display", "Config", "Runtime", "App", "View", "Surface"};
     private static final String[] CLASS_SUFFIX = {"Bootstrap", "Binder", "Bridge", "Initializer", "Compat", "Manager", "Registry"};
+    private static final String[] METHOD_VERBS = {"attach", "bind", "register", "start", "init", "apply", "open", "launch", "prepare", "enable", "connect", "setup", "mount", "activate"};
 
     private DexGenerator() {
     }
@@ -83,6 +89,21 @@ final class DexGenerator {
             classMap.put(classDef.getType(), randomDescriptor(random, used));
         }
 
+        final String oldBridgeDesc = "L" + bridgeClass.replace('.', '/') + ";";
+        final String newBridgeDesc = classMap.get(oldBridgeDesc);
+        if (newBridgeDesc == null) {
+            throw new IllegalStateException("Entry class missing from template dex");
+        }
+        Set<String> bridgeMethodNames = new HashSet<>();
+        for (ClassDef classDef : dexFile.getClasses()) {
+            if (oldBridgeDesc.equals(classDef.getType())) {
+                for (Method method : classDef.getMethods()) {
+                    bridgeMethodNames.add(method.getName());
+                }
+            }
+        }
+        final String newBridgeMethod = randomMethodName(random, bridgeMethod, bridgeMethodNames);
+
         DexRewriter rewriter = new DexRewriter(new RewriterModule() {
             @Override
             public Rewriter<String> getTypeRewriter(Rewriters rewriters) {
@@ -91,6 +112,50 @@ final class DexGenerator {
                     public String rewrite(String type) {
                         String mapped = classMap.get(type);
                         return mapped != null ? mapped : type;
+                    }
+                };
+            }
+
+            @Override
+            public Rewriter<Method> getMethodRewriter(Rewriters rewriters) {
+                final Rewriter<Method> base = super.getMethodRewriter(rewriters);
+                return new Rewriter<Method>() {
+                    @Override
+                    public Method rewrite(Method method) {
+                        Method rewritten = base.rewrite(method);
+                        if (newBridgeDesc.equals(rewritten.getDefiningClass())
+                                && bridgeMethod.equals(rewritten.getName())) {
+                            return new ImmutableMethod(
+                                    rewritten.getDefiningClass(),
+                                    newBridgeMethod,
+                                    rewritten.getParameters(),
+                                    rewritten.getReturnType(),
+                                    rewritten.getAccessFlags(),
+                                    rewritten.getAnnotations(),
+                                    rewritten.getHiddenApiRestrictions(),
+                                    rewritten.getImplementation());
+                        }
+                        return rewritten;
+                    }
+                };
+            }
+
+            @Override
+            public Rewriter<MethodReference> getMethodReferenceRewriter(Rewriters rewriters) {
+                final Rewriter<MethodReference> base = super.getMethodReferenceRewriter(rewriters);
+                return new Rewriter<MethodReference>() {
+                    @Override
+                    public MethodReference rewrite(MethodReference reference) {
+                        MethodReference rewritten = base.rewrite(reference);
+                        if (newBridgeDesc.equals(rewritten.getDefiningClass())
+                                && bridgeMethod.equals(rewritten.getName())) {
+                            return new ImmutableMethodReference(
+                                    rewritten.getDefiningClass(),
+                                    newBridgeMethod,
+                                    rewritten.getParameterTypes(),
+                                    rewritten.getReturnType());
+                        }
+                        return rewritten;
                     }
                 };
             }
@@ -140,18 +205,13 @@ final class DexGenerator {
         File out = new File(context.getCacheDir(), "generated.dex");
         DexFileFactory.writeDexFile(out.getAbsolutePath(), rewritten);
 
-        String oldBridgeDesc = "L" + bridgeClass.replace('.', '/') + ";";
-        String newBridgeDesc = classMap.get(oldBridgeDesc);
-        if (newBridgeDesc == null) {
-            throw new IllegalStateException("Entry class missing from template dex");
-        }
         String newBridgeClass = newBridgeDesc.substring(1, newBridgeDesc.length() - 1)
                 .replace('/', '.');
         String hookText = "MainActivity call\n\n"
-                + "Java (MainActivity.onCreate):\n"
-                + "    " + newBridgeClass + "." + bridgeMethod + "(this);\n\n"
-                + "Smali (MainActivity.onCreate, p0 = this):\n"
-                + "    invoke-static {p0}, " + newBridgeDesc + "->" + bridgeMethod
+                + "Java (MainActivity.onCreate, after super.onCreate):\n"
+                + "    " + newBridgeClass + "." + newBridgeMethod + "(this);\n\n"
+                + "Smali (MainActivity.onCreate, after super.onCreate, p0 = this):\n"
+                + "    invoke-static {p0}, " + newBridgeDesc + "->" + newBridgeMethod
                 + "(Landroid/app/Activity;)V\n";
         return new Result(out, hookText);
     }
@@ -166,6 +226,14 @@ final class DexGenerator {
             descriptor = "L" + pkg + "/" + cls + ";";
         } while (!used.add(descriptor));
         return descriptor;
+    }
+
+    private static String randomMethodName(SecureRandom random, String oldName, Set<String> usedNames) {
+        String name;
+        do {
+            name = METHOD_VERBS[random.nextInt(METHOD_VERBS.length)];
+        } while (name.equals(oldName) || usedNames.contains(name));
+        return name;
     }
 
     private static String buildBlob(String url) throws Exception {

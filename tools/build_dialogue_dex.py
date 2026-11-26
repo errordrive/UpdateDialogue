@@ -103,6 +103,7 @@ def main():
             "--min-api", "21",
             "--lib", android_jar,
             "--pg-conf", ROOT / "app/proguard-generated.pro",
+            "--pg-conf", ROOT / "app/proguard-dialogue-dex.pro",
             "--output", dex_dir,
             *class_files,
         ]

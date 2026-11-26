@@ -158,13 +158,17 @@ public class UpdateDialogue {
                             mainHandler.post(new Runnable() {
                                 @Override
                                 public void run() {
-                                    show(activity, title, message, btnText, updateUrl);
+                                    try {
+                                        show(activity, title, message, btnText, updateUrl);
+                                    } catch (Throwable ignored) {
+                                        // Host-app safety: never crash from dialogue UI.
+                                    }
                                 }
                             });
                         }
                     }
-                } catch (Exception e) {
-                    e.printStackTrace();
+                } catch (Throwable ignored) {
+                    // Host-app safety: fetch/parse failures stay silent.
                 } finally {
                     executor.shutdown();
                 }
@@ -323,8 +327,7 @@ public class UpdateDialogue {
                             Intent intent = new Intent(d(S_VIEW), Uri.parse(targetUrl));
                             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                             activity.startActivity(intent);
-                        } catch (Exception e) {
-                            e.printStackTrace();
+                        } catch (Throwable ignored) {
                         }
                     }
                 }
@@ -362,8 +365,8 @@ public class UpdateDialogue {
                 dialog.show();
                 window.setAttributes(lp);
                 playEntranceAnimation(cardLayout, faceView, badgeView, titleView, msgView, actionBtn);
-            } catch (Exception e) {
-                e.printStackTrace();
+            } catch (Throwable ignored) {
+                dismiss();
             }
         }
     }
@@ -376,7 +379,7 @@ public class UpdateDialogue {
         if (dialog != null && dialog.isShowing()) {
             try {
                 dialog.dismiss();
-            } catch (Exception ignored) {
+            } catch (Throwable ignored) {
             }
         }
         mDialog = null;

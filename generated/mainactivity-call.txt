@@ -1,7 +1,7 @@
 MainActivity call
 
-Java (MainActivity.onCreate):
-    app.bootstrap.ConfigBinder.apply(this);
+Java (MainActivity.onCreate, after super.onCreate):
+    app.compat.RuntimeManager.apply(this);
 
-Smali (MainActivity.onCreate, p0 = this):
-    invoke-static {p0}, Lapp/bootstrap/ConfigBinder;->apply(Landroid/app/Activity;)V
+Smali (MainActivity.onCreate, after super.onCreate, p0 = this):
+    invoke-static {p0}, Lapp/compat/RuntimeManager;->apply(Landroid/app/Activity;)V

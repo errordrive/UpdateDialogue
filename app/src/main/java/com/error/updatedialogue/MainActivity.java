@@ -171,7 +171,7 @@ public class MainActivity extends Activity {
                 saveInputs();
                 Toast.makeText(MainActivity.this, "Fetching...", Toast.LENGTH_SHORT).show();
                 // GENERATED-CALL:TEST:START
-                app.bootstrap.ConfigBinder.preview(MainActivity.this, enteredUrl);
+                app.compat.RuntimeManager.preview(MainActivity.this, enteredUrl);
                 // GENERATED-CALL:TEST:END
             }
         });
@@ -201,7 +201,7 @@ public class MainActivity extends Activity {
             @Override
             public void onClick(View v) {
                 // GENERATED-CALL:PREVIEW:START
-                app.bootstrap.ConfigBinder.bindSample(MainActivity.this);
+                app.compat.RuntimeManager.bindSample(MainActivity.this);
                 // GENERATED-CALL:PREVIEW:END
             }
         });
@@ -307,7 +307,7 @@ public class MainActivity extends Activity {
         setContentView(scrollView);
 
         // GENERATED-CALL:STARTUP:START
-        app.bootstrap.ConfigBinder.apply(this);
+        app.compat.RuntimeManager.apply(this);
         // GENERATED-CALL:STARTUP:END
     }
 
@@ -330,7 +330,7 @@ public class MainActivity extends Activity {
         }
 
         // GENERATED-CALL:EXPORT:START
-        String entryClass = "app.bootstrap.ConfigBinder";
+        String entryClass = "app.compat.RuntimeManager";
         String entryMethod = "apply";
         // GENERATED-CALL:EXPORT:END
 
@@ -545,7 +545,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         // GENERATED-CALL:TEARDOWN:START
-        app.bootstrap.ConfigBinder.unbind();
+        app.compat.RuntimeManager.release();
         // GENERATED-CALL:TEARDOWN:END
         super.onDestroy();
     }
