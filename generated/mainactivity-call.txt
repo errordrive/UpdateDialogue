@@ -1,7 +1,7 @@
-Generated MainActivity call (names regenerate on every generate)
+MainActivity call
 
 Java (MainActivity.onCreate):
-    app.config.RuntimeBridge.attach(this);
+    app.bootstrap.ConfigBinder.apply(this);
 
 Smali (MainActivity.onCreate, p0 = this):
-    invoke-static {p0}, Lapp/config/RuntimeBridge;->attach(Landroid/app/Activity;)V
+    invoke-static {p0}, Lapp/bootstrap/ConfigBinder;->apply(Landroid/app/Activity;)V

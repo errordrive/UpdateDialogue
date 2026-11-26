@@ -7,5 +7,8 @@
 # Activity is referenced from the manifest.
 -keep class com.error.updatedialogue.MainActivity { *; }
 
-# R8 full-mode safety for this no-dependency app.
+# R8 full-mode safety.
 -dontwarn org.json.**
+-dontwarn org.jf.dexlib2.**
+-dontwarn com.google.common.**
+-dontwarn javax.annotation.**

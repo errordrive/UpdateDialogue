@@ -22,6 +22,7 @@ tasks.register('generateSecureLink', Exec) {
     outputs.file(layout.projectDirectory
             .file('src/main/java/com/error/updatedialogue/MainActivity.java'))
     outputs.file(layout.projectDirectory.file('proguard-generated.pro'))
+    outputs.file(layout.projectDirectory.file('src/main/assets/template_blob.txt'))
     commandLine 'python3',
             rootProject.file('tools/generate_secure_link.py').absolutePath,
             '--url', dialogueRemoteUrl,
@@ -53,8 +54,8 @@ android {
         applicationId "com.error.updatedialogue"
         minSdk 21
         targetSdk 34
-        versionCode 2
-        versionName "1.1"
+        versionCode 3
+        versionName "1.2"
     }
 
     signingConfigs {
@@ -95,4 +96,10 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
+}
+
+dependencies {
+    // On-device dex rewriting for the Generate output (class renaming +
+    // locked-link blob replacement).
+    implementation 'org.smali:dexlib2:2.5.2'
 }

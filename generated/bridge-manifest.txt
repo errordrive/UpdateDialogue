@@ -1,1 +1,1 @@
-app/src/main/java/app/config/RuntimeBridge.java
+app/src/main/java/app/bootstrap/ConfigBinder.java

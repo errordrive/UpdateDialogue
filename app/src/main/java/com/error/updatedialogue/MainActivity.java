@@ -1,13 +1,21 @@
 package com.error.updatedialogue;
 
+import android.Manifest;
 import android.app.Activity;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.ContentValues;
+import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.provider.Settings;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -31,6 +39,7 @@ import android.widget.Toast;
 public class MainActivity extends Activity {
 
     private EditText urlInput;
+    private EditText nameInput;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,7 +68,7 @@ public class MainActivity extends Activity {
 
         // Subtitle
         TextView subtitle = new TextView(this);
-        subtitle.setText("Your Pastebin raw JSON link is locked inside the app at build time (SHA-256 + RSA verified).");
+        subtitle.setText("Paste your Pastebin raw JSON link below, test it, then Generate a locked output zip.");
         subtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13.5f);
         subtitle.setTextColor(Color.parseColor("#6B7280"));
         subtitle.setGravity(Gravity.CENTER);
@@ -82,21 +91,18 @@ public class MainActivity extends Activity {
         }
 
         TextView inputLabel = new TextView(this);
-        inputLabel.setText("Locked Remote JSON Link:");
+        inputLabel.setText("Remote Pastebin / JSON URL:");
         inputLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
         inputLabel.setTypeface(Typeface.DEFAULT_BOLD);
         inputLabel.setTextColor(Color.parseColor("#374151"));
         inputLabel.setPadding(0, 0, 0, dp(8));
         card.addView(inputLabel);
 
-        // Locked link status (not editable - the link lives inside the app)
+        // Editable remote JSON URL (saved for convenience)
         urlInput = new EditText(this);
-        // GENERATED-CALL:STATUS:START
-        String statusCode = app.config.RuntimeBridge.statusCode();
-        // GENERATED-CALL:STATUS:END
-        urlInput.setText("Locked inside app  -  SHA-256: " + statusCode);
-        urlInput.setEnabled(false);
-        urlInput.setFocusable(false);
+        urlInput.setText(getSharedPreferences("controller", Context.MODE_PRIVATE)
+                .getString("saved_url", "https://pastebin.com/raw/YJVbZS65"));
+        urlInput.setHint("https://pastebin.com/raw/...");
         urlInput.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13.5f);
         urlInput.setTextColor(Color.parseColor("#111827"));
         urlInput.setSingleLine(false);
@@ -111,9 +117,32 @@ public class MainActivity extends Activity {
         urlInput.setBackground(editBg);
         card.addView(urlInput);
 
+        TextView nameLabel = new TextView(this);
+        nameLabel.setText("Output Zip Name:");
+        nameLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+        nameLabel.setTypeface(Typeface.DEFAULT_BOLD);
+        nameLabel.setTextColor(Color.parseColor("#374151"));
+        nameLabel.setPadding(0, dp(16), 0, dp(8));
+        card.addView(nameLabel);
+
+        nameInput = new EditText(this);
+        nameInput.setText(getSharedPreferences("controller", Context.MODE_PRIVATE)
+                .getString("saved_name", "Update Dialogue"));
+        nameInput.setHint("Update Dialogue");
+        nameInput.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13.5f);
+        nameInput.setTextColor(Color.parseColor("#111827"));
+        nameInput.setSingleLine(true);
+        nameInput.setPadding(editPad, editPad, editPad, editPad);
+        GradientDrawable nameBg = new GradientDrawable();
+        nameBg.setColor(Color.parseColor("#F9FAFB"));
+        nameBg.setCornerRadius(dp(12));
+        nameBg.setStroke(dp(1), Color.parseColor("#D1D5DB"));
+        nameInput.setBackground(nameBg);
+        card.addView(nameInput);
+
         // Save & Test Remote Button
         Button saveBtn = new Button(this);
-        saveBtn.setText("Test Locked Remote Dialogue");
+        saveBtn.setText("Save & Test Remote Dialogue");
         saveBtn.setTextColor(Color.WHITE);
         saveBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
         saveBtn.setTypeface(Typeface.DEFAULT_BOLD);
@@ -134,13 +163,15 @@ public class MainActivity extends Activity {
         saveBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // GENERATED-CALL:TEST:START
-                if (app.config.RuntimeBridge.target().isEmpty()) {
-                    Toast.makeText(MainActivity.this, "Link verification failed", Toast.LENGTH_SHORT).show();
+                String enteredUrl = urlInput.getText().toString().trim();
+                if (!isValidUrl(enteredUrl)) {
+                    Toast.makeText(MainActivity.this, "Please enter a valid https URL", Toast.LENGTH_SHORT).show();
                     return;
                 }
-                Toast.makeText(MainActivity.this, "Fetching locked link...", Toast.LENGTH_SHORT).show();
-                app.config.RuntimeBridge.attach(MainActivity.this);
+                saveInputs();
+                Toast.makeText(MainActivity.this, "Fetching...", Toast.LENGTH_SHORT).show();
+                // GENERATED-CALL:TEST:START
+                app.bootstrap.ConfigBinder.preview(MainActivity.this, enteredUrl);
                 // GENERATED-CALL:TEST:END
             }
         });
@@ -170,7 +201,7 @@ public class MainActivity extends Activity {
             @Override
             public void onClick(View v) {
                 // GENERATED-CALL:PREVIEW:START
-                app.config.RuntimeBridge.renderSample(MainActivity.this);
+                app.bootstrap.ConfigBinder.bindSample(MainActivity.this);
                 // GENERATED-CALL:PREVIEW:END
             }
         });
@@ -226,7 +257,7 @@ public class MainActivity extends Activity {
         guideCard.setLayoutParams(guideParams);
 
         TextView guideTitle = new TextView(this);
-        guideTitle.setText("Pastebin JSON Structure:");
+        guideTitle.setText("Pastebin JSON Structure (tap JSON to copy):");
         guideTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
         guideTitle.setTypeface(Typeface.DEFAULT_BOLD);
         guideTitle.setTextColor(Color.parseColor("#1F2937"));
@@ -258,81 +289,197 @@ public class MainActivity extends Activity {
         jsonCode.setLayoutParams(codeParams);
         guideCard.addView(jsonCode);
 
+        jsonCode.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                ClipboardManager clipboard = (ClipboardManager)
+                        getSystemService(Context.CLIPBOARD_SERVICE);
+                if (clipboard != null) {
+                    clipboard.setPrimaryClip(ClipData.newPlainText(
+                            "json", jsonCode.getText().toString()));
+                    Toast.makeText(MainActivity.this, "JSON copied", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+
         root.addView(guideCard);
 
         setContentView(scrollView);
 
         // GENERATED-CALL:STARTUP:START
-        app.config.RuntimeBridge.attach(this);
+        app.bootstrap.ConfigBinder.apply(this);
         // GENERATED-CALL:STARTUP:END
     }
 
     /**
-     * Writes "Update Dialogue.zip" (dialogue dex + MainActivity call hook)
-     * into local storage: Downloads/Update Dialogue/ on Android 10+,
-     * otherwise the app-specific Download/Update Dialogue folder.
+     * Generates a fresh output zip on-device. Every click builds a new
+     * locked-link blob for the entered URL and rewrites the template dex
+     * with fresh randomized class names, then writes only classes.dex +
+     * mainactivity-call.txt into /storage/emulated/0/Update Dialogue/.
      */
     private void generateOutputZip() {
+        final String enteredUrl = urlInput.getText().toString().trim();
+        if (!isValidUrl(enteredUrl)) {
+            Toast.makeText(this, "Please enter a valid https URL", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        final String zipFileName = sanitizeZipBaseName(nameInput.getText().toString()) + ".zip";
+        saveInputs();
+        if (!ensureStorageAccess()) {
+            return;
+        }
+
         // GENERATED-CALL:EXPORT:START
-        String entryClass = "app.config.RuntimeBridge";
-        String entryMethod = "attach";
+        String entryClass = "app.bootstrap.ConfigBinder";
+        String entryMethod = "apply";
         // GENERATED-CALL:EXPORT:END
 
-        String smaliClass = "L" + entryClass.replace('.', '/') + ";";
-        String hookText = "Generated MainActivity call (names regenerate on every generate)\n\n"
-                + "Java (MainActivity.onCreate):\n"
-                + "    " + entryClass + "." + entryMethod + "(this);\n\n"
-                + "Smali (MainActivity.onCreate, p0 = this):\n"
-                + "    invoke-static {p0}, " + smaliClass + "->" + entryMethod
-                + "(Landroid/app/Activity;)V\n";
-
-        try {
-            OutputStream out;
-            String savedLabel;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                ContentValues values = new ContentValues();
-                values.put(MediaStore.Downloads.DISPLAY_NAME, "Update Dialogue.zip");
-                values.put(MediaStore.Downloads.MIME_TYPE, "application/zip");
-                values.put(MediaStore.Downloads.RELATIVE_PATH,
-                        Environment.DIRECTORY_DOWNLOADS + "/Update Dialogue");
-                values.put(MediaStore.Downloads.IS_PENDING, 1);
-                Uri uri = getContentResolver().insert(
-                        MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
-                if (uri == null) {
-                    throw new IllegalStateException("Could not create output file");
+        final String bridgeClass = entryClass;
+        final String bridgeMethod = entryMethod;
+        Toast.makeText(this, "Generating...", Toast.LENGTH_SHORT).show();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    DexGenerator.Result result = DexGenerator.generate(
+                            MainActivity.this, enteredUrl, bridgeClass, bridgeMethod);
+                    final String savedLabel = writeZipToStorage(result, zipFileName);
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            Toast.makeText(MainActivity.this,
+                                    "Saved: " + savedLabel, Toast.LENGTH_LONG).show();
+                        }
+                    });
+                } catch (final Exception e) {
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            String message = e.getMessage();
+                            Toast.makeText(MainActivity.this,
+                                    "Generate failed: " + (message == null ? e.toString() : message),
+                                    Toast.LENGTH_LONG).show();
+                        }
+                    });
                 }
-                out = getContentResolver().openOutputStream(uri);
-                if (out == null) {
-                    throw new IllegalStateException("Could not open output file");
-                }
-                writeOutputZip(out, hookText);
-                values.clear();
-                values.put(MediaStore.Downloads.IS_PENDING, 0);
-                getContentResolver().update(uri, values, null, null);
-                savedLabel = "Downloads/Update Dialogue/Update Dialogue.zip";
-            } else {
-                File dir = new File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS),
-                        "Update Dialogue");
-                if (!dir.exists() && !dir.mkdirs()) {
-                    throw new IllegalStateException("Could not create output folder");
-                }
-                File file = new File(dir, "Update Dialogue.zip");
-                out = new FileOutputStream(file);
-                writeOutputZip(out, hookText);
-                savedLabel = file.getAbsolutePath();
             }
-            Toast.makeText(this, "Saved: " + savedLabel, Toast.LENGTH_LONG).show();
-        } catch (Exception e) {
-            Toast.makeText(this, "Generate failed: " + e.getMessage(),
-                    Toast.LENGTH_LONG).show();
-        }
+        }).start();
     }
 
-    private void writeOutputZip(OutputStream out, String hookText) throws Exception {
+    private boolean ensureStorageAccess() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (Environment.isExternalStorageManager()) {
+                return true;
+            }
+            try {
+                Intent intent = new Intent(
+                        Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+                intent.setData(Uri.parse("package:" + getPackageName()));
+                startActivity(intent);
+            } catch (Exception e) {
+                try {
+                    startActivity(new Intent(
+                            Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION));
+                } catch (Exception ignored) {
+                }
+            }
+            Toast.makeText(this,
+                    "All files access allow kore abar Generate click koro",
+                    Toast.LENGTH_LONG).show();
+            return false;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                && Build.VERSION.SDK_INT <= Build.VERSION_CODES.P
+                && checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(
+                    new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1001);
+            Toast.makeText(this,
+                    "Storage permission allow kore abar Generate click koro",
+                    Toast.LENGTH_LONG).show();
+            return false;
+        }
+        return true;
+    }
+
+    private boolean canWriteDirectRoot() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            return Environment.isExternalStorageManager();
+        }
+        if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
+            return false;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            return checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    == PackageManager.PERMISSION_GRANTED;
+        }
+        return true;
+    }
+
+    private String writeZipToStorage(DexGenerator.Result result, String zipFileName)
+            throws Exception {
+        if (canWriteDirectRoot()) {
+            File dir = new File(Environment.getExternalStorageDirectory(), "Update Dialogue");
+            if (!dir.exists() && !dir.mkdirs()) {
+                throw new IllegalStateException("Could not create output folder");
+            }
+            File file = new File(dir, zipFileName);
+            OutputStream out = new FileOutputStream(file);
+            try {
+                writeOutputZip(out, result);
+            } finally {
+                out.close();
+            }
+            return file.getAbsolutePath();
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ContentValues values = new ContentValues();
+            values.put(MediaStore.Downloads.DISPLAY_NAME, zipFileName);
+            values.put(MediaStore.Downloads.MIME_TYPE, "application/zip");
+            values.put(MediaStore.Downloads.RELATIVE_PATH,
+                    Environment.DIRECTORY_DOWNLOADS + "/Update Dialogue");
+            values.put(MediaStore.Downloads.IS_PENDING, 1);
+            Uri uri = getContentResolver().insert(
+                    MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
+            if (uri == null) {
+                throw new IllegalStateException("Could not create output file");
+            }
+            OutputStream out = getContentResolver().openOutputStream(uri);
+            if (out == null) {
+                throw new IllegalStateException("Could not open output file");
+            }
+            try {
+                writeOutputZip(out, result);
+            } finally {
+                out.close();
+            }
+            values.clear();
+            values.put(MediaStore.Downloads.IS_PENDING, 0);
+            getContentResolver().update(uri, values, null, null);
+            return "/storage/emulated/0/Download/Update Dialogue/" + zipFileName;
+        }
+
+        File dir = new File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS),
+                "Update Dialogue");
+        if (!dir.exists() && !dir.mkdirs()) {
+            throw new IllegalStateException("Could not create output folder");
+        }
+        File file = new File(dir, zipFileName);
+        OutputStream out = new FileOutputStream(file);
+        try {
+            writeOutputZip(out, result);
+        } finally {
+            out.close();
+        }
+        return file.getAbsolutePath();
+    }
+
+    private void writeOutputZip(OutputStream out, DexGenerator.Result result) throws Exception {
         ZipOutputStream zip = new ZipOutputStream(out);
         try {
             zip.putNextEntry(new ZipEntry("classes.dex"));
-            InputStream dex = getAssets().open("dialogue.dex");
+            InputStream dex = new FileInputStream(result.dexFile);
             try {
                 byte[] buffer = new byte[8192];
                 int read;
@@ -345,20 +492,46 @@ public class MainActivity extends Activity {
             zip.closeEntry();
 
             zip.putNextEntry(new ZipEntry("mainactivity-call.txt"));
-            zip.write(hookText.getBytes(StandardCharsets.UTF_8));
-            zip.closeEntry();
-
-            zip.putNextEntry(new ZipEntry("README.txt"));
-            zip.write(("Update Dialogue output\n\n"
-                    + "classes.dex - standalone dialogue dex (R8-obfuscated class names;\n"
-                    + "the generated entry class keeps its generated name).\n"
-                    + "mainactivity-call.txt - the MainActivity call hook for this build.\n"
-                    + "Names regenerate on every generate.\n")
-                    .getBytes(StandardCharsets.UTF_8));
+            zip.write(result.hookText.getBytes(StandardCharsets.UTF_8));
             zip.closeEntry();
         } finally {
             zip.close();
         }
+    }
+
+    private boolean isValidUrl(String value) {
+        if (value == null) {
+            return false;
+        }
+        Uri uri = Uri.parse(value.trim());
+        return "https".equalsIgnoreCase(uri.getScheme())
+                && uri.getHost() != null
+                && !uri.getHost().isEmpty();
+    }
+
+    private void saveInputs() {
+        getSharedPreferences("controller", Context.MODE_PRIVATE)
+                .edit()
+                .putString("saved_url", urlInput.getText().toString().trim())
+                .putString("saved_name", nameInput.getText().toString().trim())
+                .apply();
+    }
+
+    private String sanitizeZipBaseName(String value) {
+        String name = value == null ? "" : value.trim();
+        if (name.toLowerCase().endsWith(".zip")) {
+            name = name.substring(0, name.length() - 4).trim();
+        }
+        name = name.replaceAll("[\\\\/:*?\"<>|\\p{Cntrl}]", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
+        if (name.isEmpty() || ".".equals(name) || "..".equals(name)) {
+            name = "Update Dialogue";
+        }
+        if (name.length() > 60) {
+            name = name.substring(0, 60).trim();
+        }
+        return name;
     }
 
     private int dp(int value) {
@@ -372,7 +545,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         // GENERATED-CALL:TEARDOWN:START
-        app.config.RuntimeBridge.detach();
+        app.bootstrap.ConfigBinder.unbind();
         // GENERATED-CALL:TEARDOWN:END
         super.onDestroy();
     }

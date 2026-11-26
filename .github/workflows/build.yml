@@ -70,14 +70,6 @@ jobs:
           mkdir -p "build/Update Dialogue"
           cp app/src/main/assets/dialogue.dex "build/Update Dialogue/classes.dex"
           cp generated/mainactivity-call.txt "build/Update Dialogue/mainactivity-call.txt"
-          printf '%s\n' \
-            'Update Dialogue output' \
-            '' \
-            'classes.dex - standalone dialogue dex (R8-obfuscated class names;' \
-            'the generated entry class keeps its generated name).' \
-            'mainactivity-call.txt - the MainActivity call hook for this build.' \
-            'Names regenerate on every generate.' \
-            > "build/Update Dialogue/README.txt"
           cd "build/Update Dialogue" && zip -r "../Update Dialogue.zip" .
 
       - name: Upload APK and Update Dialogue zip artifacts
