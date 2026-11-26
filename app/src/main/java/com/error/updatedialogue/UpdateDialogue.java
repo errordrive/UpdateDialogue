@@ -57,24 +57,82 @@ import java.util.concurrent.Executors;
  *   UpdateDialogue.show(this, "New Update!", "Update available.", "DOWNLOAD", "https://example.com");
  */
 public class UpdateDialogue {
-    private static final String JSON_URL = "https://pastebin.com/raw/YJVbZS65";
+    public static final String DEFAULT_JSON_URL = "https://pastebin.com/raw/YJVbZS65";
+    private static final String PREFS_NAME = "UpdateDialoguePrefs";
+    private static final String KEY_REMOTE_URL = "remote_json_url";
+
+    private static String sCustomJsonUrl = null;
     private static Dialog mDialog;
 
     /**
-     * Fetches update config from JSON_URL on a background thread and displays
+     * Sets and persists the remote JSON URL (e.g. Pastebin raw URL).
+     */
+    public static void setRemoteUrl(Context context, String url) {
+        if (url != null) {
+            url = url.trim();
+        }
+        sCustomJsonUrl = url;
+        if (context != null) {
+            try {
+                context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                        .edit()
+                        .putString(KEY_REMOTE_URL, url)
+                        .apply();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    /**
+     * Gets the currently active remote JSON URL.
+     */
+    public static String getRemoteUrl(Context context) {
+        if (sCustomJsonUrl != null && !sCustomJsonUrl.isEmpty()) {
+            return sCustomJsonUrl;
+        }
+        if (context != null) {
+            try {
+                String saved = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                        .getString(KEY_REMOTE_URL, null);
+                if (saved != null && !saved.trim().isEmpty()) {
+                    sCustomJsonUrl = saved.trim();
+                    return sCustomJsonUrl;
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        return DEFAULT_JSON_URL;
+    }
+
+    /**
+     * Fetches update config using the configured remote URL on a background thread and displays
      * the dialogue if "isVisible" is true. Safe to call from Activity.onCreate().
      */
     public static void checkAndShow(final Activity activity) {
+        checkAndShow(activity, getRemoteUrl(activity));
+    }
+
+    /**
+     * Fetches update config from an explicit remote URL on a background thread and displays
+     * the dialogue if "isVisible" is true.
+     */
+    public static void checkAndShow(final Activity activity, final String targetUrl) {
         if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
             return;
         }
+        final String fetchUrl = (targetUrl != null && !targetUrl.trim().isEmpty())
+                ? targetUrl.trim()
+                : getRemoteUrl(activity);
+
         final ExecutorService executor = Executors.newSingleThreadExecutor();
         final Handler mainHandler = new Handler(Looper.getMainLooper());
         executor.execute(new Runnable() {
             @Override
             public void run() {
                 try {
-                    String jsonResponse = fetchJson(JSON_URL);
+                    String jsonResponse = fetchJson(fetchUrl);
                     if (jsonResponse != null) {
                         JSONObject json = new JSONObject(jsonResponse);
                         if (json.optBoolean("isVisible", false)) {
