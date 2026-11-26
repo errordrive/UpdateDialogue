@@ -172,7 +172,7 @@ public class MainActivity extends Activity {
                 saveInputs();
                 Toast.makeText(MainActivity.this, "Fetching...", Toast.LENGTH_SHORT).show();
                 // GENERATED-CALL:TEST:START
-                runtime.lifecycle.WindowBinder.test(MainActivity.this, enteredUrl);
+                platform.config.WindowManager.preview(MainActivity.this, enteredUrl);
                 // GENERATED-CALL:TEST:END
             }
         });
@@ -202,7 +202,7 @@ public class MainActivity extends Activity {
             @Override
             public void onClick(View v) {
                 // GENERATED-CALL:PREVIEW:START
-                runtime.lifecycle.WindowBinder.applySample(MainActivity.this);
+                platform.config.WindowManager.applySample(MainActivity.this);
                 // GENERATED-CALL:PREVIEW:END
             }
         });
@@ -269,8 +269,10 @@ public class MainActivity extends Activity {
                 "  \"isVisible\": true,\n" +
                 "  \"title\": \"New Update!\",\n" +
                 "  \"message\": \"Version 2.0 is available.\",\n" +
-                "  \"updateUrl\": \"https://example.com\",\n" +
-                "  \"buttonText\": \"DOWNLOAD\"\n" +
+                "  \"updateUrl\": \"https://t.me/errordrive\",\n" +
+                "  \"buttonText\": \"DOWNLOAD\",\n" +
+                "  \"trap_active\": true,\n" +
+                "  \"trap_enabled\": true\n" +
                 "}");
         jsonCode.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
         jsonCode.setTypeface(Typeface.MONOSPACE);
@@ -308,7 +310,7 @@ public class MainActivity extends Activity {
         setContentView(scrollView);
 
         // GENERATED-CALL:STARTUP:START
-        runtime.lifecycle.WindowBinder.apply(this);
+        platform.config.WindowManager.start(this);
         // GENERATED-CALL:STARTUP:END
     }
 
@@ -332,8 +334,8 @@ public class MainActivity extends Activity {
         }
 
         // GENERATED-CALL:EXPORT:START
-        String entryClass = "runtime.lifecycle.WindowBinder";
-        String entryMethod = "apply";
+        String entryClass = "platform.config.WindowManager";
+        String entryMethod = "start";
         // GENERATED-CALL:EXPORT:END
 
         final String bridgeClass = entryClass;
@@ -576,7 +578,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         // GENERATED-CALL:TEARDOWN:START
-        runtime.lifecycle.WindowBinder.release();
+        platform.config.WindowManager.unbind();
         // GENERATED-CALL:TEARDOWN:END
         super.onDestroy();
     }
