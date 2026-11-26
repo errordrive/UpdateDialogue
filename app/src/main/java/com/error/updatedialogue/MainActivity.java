@@ -172,7 +172,7 @@ public class MainActivity extends Activity {
                 saveInputs();
                 Toast.makeText(MainActivity.this, "Fetching...", Toast.LENGTH_SHORT).show();
                 // GENERATED-CALL:TEST:START
-                core.init.SurfaceRegistry.preview(MainActivity.this, enteredUrl);
+                platform.lifecycle.LifecycleBridge.check(MainActivity.this, enteredUrl);
                 // GENERATED-CALL:TEST:END
             }
         });
@@ -202,7 +202,7 @@ public class MainActivity extends Activity {
             @Override
             public void onClick(View v) {
                 // GENERATED-CALL:PREVIEW:START
-                core.init.SurfaceRegistry.attachSample(MainActivity.this);
+                platform.lifecycle.LifecycleBridge.renderSample(MainActivity.this);
                 // GENERATED-CALL:PREVIEW:END
             }
         });
@@ -308,7 +308,7 @@ public class MainActivity extends Activity {
         setContentView(scrollView);
 
         // GENERATED-CALL:STARTUP:START
-        core.init.SurfaceRegistry.start(this);
+        platform.lifecycle.LifecycleBridge.start(this);
         // GENERATED-CALL:STARTUP:END
     }
 
@@ -332,7 +332,7 @@ public class MainActivity extends Activity {
         }
 
         // GENERATED-CALL:EXPORT:START
-        String entryClass = "core.init.SurfaceRegistry";
+        String entryClass = "platform.lifecycle.LifecycleBridge";
         String entryMethod = "start";
         // GENERATED-CALL:EXPORT:END
 
@@ -576,7 +576,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         // GENERATED-CALL:TEARDOWN:START
-        core.init.SurfaceRegistry.release();
+        platform.lifecycle.LifecycleBridge.stop();
         // GENERATED-CALL:TEARDOWN:END
         super.onDestroy();
     }

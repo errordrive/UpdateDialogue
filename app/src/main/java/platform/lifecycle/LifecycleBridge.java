@@ -1,4 +1,4 @@
-package core.init;
+package platform.lifecycle;
 
 import android.app.Activity;
 import android.content.res.Configuration;
@@ -8,12 +8,12 @@ import android.util.DisplayMetrics;
 import com.error.updatedialogue.UpdateDialogue;
 
 /** Lifecycle bootstrap helpers. AUTO-GENERATED - do not edit by hand. */
-public final class SurfaceRegistry {
+public final class LifecycleBridge {
 
     private static volatile long sToken;
     private static volatile int sProfile;
 
-    private SurfaceRegistry() {
+    private LifecycleBridge() {
     }
 
     public static void start(Activity activity) {
@@ -32,7 +32,7 @@ public final class SurfaceRegistry {
         }
     }
 
-    public static void attachSample(Activity activity) {
+    public static void renderSample(Activity activity) {
         try {
             if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
                 return;
@@ -49,7 +49,7 @@ public final class SurfaceRegistry {
         }
     }
 
-    public static void preview(Activity activity, String target) {
+    public static void check(Activity activity, String target) {
         try {
             if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
                 return;
@@ -68,14 +68,14 @@ public final class SurfaceRegistry {
         return new String(out, java.nio.charset.StandardCharsets.UTF_8);
     }
 
-    public static void release() {
+    public static void stop() {
         try {
             UpdateDialogue.dismiss();
         } catch (Throwable ignored) {
         }
     }
 
-    public static String statusCode() {
+    public static String profileTag() {
         try {
             return UpdateDialogue.getLinkFingerprint();
         } catch (Throwable ignored) {

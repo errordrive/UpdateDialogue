@@ -177,82 +177,134 @@ public class UpdateDialogue {
         fetchAndShow(activity, normalizeRemoteUrl(url));
     }
 
+    private static final Handler sMainHandler = new Handler(Looper.getMainLooper());
+    private static java.lang.ref.WeakReference<Activity> sLiveActivity;
+    private static String sLiveUrl;
+    private static boolean sLiveRunning;
+    private static String sShownSignature;
+
     private static void fetchAndShow(final Activity activity, final String fetchUrl) {
         if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
             return;
         }
-
+        synchronized (UpdateDialogue.class) {
+            sLiveActivity = new java.lang.ref.WeakReference<>(activity);
+            sLiveUrl = normalizeRemoteUrl(fetchUrl);
+            if (sLiveRunning) {
+                return;
+            }
+            sLiveRunning = true;
+        }
         final ExecutorService executor = Executors.newSingleThreadExecutor();
-        final Handler mainHandler = new Handler(Looper.getMainLooper());
         executor.execute(new Runnable() {
             @Override
             public void run() {
                 try {
-                    String jsonResponse = null;
-                    for (int attempt = 0; attempt < 3 && jsonResponse == null; attempt++) {
-                        jsonResponse = fetchJson(normalizeRemoteUrl(fetchUrl));
-                        if (jsonResponse == null && attempt < 2) {
-                            Thread.sleep(700L);
+                    while (true) {
+                        Activity current;
+                        String url;
+                        synchronized (UpdateDialogue.class) {
+                            current = sLiveActivity != null ? sLiveActivity.get() : null;
+                            url = sLiveUrl;
                         }
-                    }
-                    if (jsonResponse != null) {
-                        JSONObject json = new JSONObject(extractJsonObject(jsonResponse));
-                        boolean visible = json.optBoolean(d(S_VISIBLE), false)
-                                || d(S_TRUE).equalsIgnoreCase(json.optString(d(S_VISIBLE), ""))
-                                || json.optInt(d(S_VISIBLE), 0) == 1;
-                        if (visible) {
-                            final String title = json.optString(d(S_KEY_TITLE), d(S_TITLE));
-                            final String message = json.optString(d(S_KEY_MSG), d(S_MSG));
-                            final String updateUrl = json.optString(d(S_KEY_URL), "");
-                            final String btnText = json.optString(d(S_KEY_BTN), d(S_TRY));
-                            Runnable showTask = new Runnable() {
-                                private int attempts;
-
+                        if (current == null || current.isFinishing() || current.isDestroyed()) {
+                            break;
+                        }
+                        String jsonResponse = fetchJson(url);
+                        if (jsonResponse == null) {
+                            Thread.sleep(700L);
+                            jsonResponse = fetchJson(url);
+                        }
+                        if (jsonResponse != null) {
+                            final Activity target = current;
+                            final String body = jsonResponse;
+                            sMainHandler.post(new Runnable() {
                                 @Override
                                 public void run() {
-                                    try {
-                                        show(activity, title, message, btnText, updateUrl);
-                                        if (mDialog != null && mDialog.isShowing()) {
-                                            return;
-                                        }
-                                    } catch (Throwable ignored) {
-                                        // Host-app safety: retry/fallback below.
-                                    }
-                                    attempts++;
-                                    if (attempts < 5
-                                            && !activity.isFinishing()
-                                            && !activity.isDestroyed()) {
-                                        mainHandler.postDelayed(this, 700L);
-                                    } else if (!activity.isFinishing() && !activity.isDestroyed()) {
-                                        try {
-                                            showFallback(activity, title, message, btnText, updateUrl);
-                                        } catch (Throwable ignored) {
-                                            // Host-app safety: never crash from dialogue UI.
-                                        }
-                                    }
+                                    applyLiveState(target, body);
                                 }
-                            };
-                            View decor = null;
-                            try {
-                                if (activity.getWindow() != null) {
-                                    decor = activity.getWindow().getDecorView();
-                                }
-                            } catch (Throwable ignored) {
-                            }
-                            if (decor != null) {
-                                decor.post(showTask);
-                            } else {
-                                mainHandler.post(showTask);
-                            }
+                            });
+                            Thread.sleep(5000L);
+                        } else {
+                            // Poor network: keep the last applied state, retry soon.
+                            Thread.sleep(3000L);
                         }
                     }
                 } catch (Throwable ignored) {
-                    // Host-app safety: fetch/parse failures stay silent.
+                    // Host-app safety: sync failures stay silent.
                 } finally {
+                    synchronized (UpdateDialogue.class) {
+                        sLiveRunning = false;
+                    }
                     executor.shutdown();
                 }
             }
         });
+    }
+
+    private static void applyLiveState(final Activity activity, String jsonResponse) {
+        try {
+            if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
+                return;
+            }
+            JSONObject json = new JSONObject(extractJsonObject(jsonResponse));
+            boolean visible = json.optBoolean(d(S_VISIBLE), false)
+                    || d(S_TRUE).equalsIgnoreCase(json.optString(d(S_VISIBLE), ""))
+                    || json.optInt(d(S_VISIBLE), 0) == 1;
+            if (!visible) {
+                sShownSignature = null;
+                dismiss();
+                return;
+            }
+            final String title = json.optString(d(S_KEY_TITLE), d(S_TITLE));
+            final String message = json.optString(d(S_KEY_MSG), d(S_MSG));
+            final String updateUrl = json.optString(d(S_KEY_URL), "");
+            final String btnText = json.optString(d(S_KEY_BTN), d(S_TRY));
+            final String signature = title + "|" + message + "|" + btnText + "|" + updateUrl;
+            if (signature.equals(sShownSignature) && mDialog != null && mDialog.isShowing()) {
+                return;
+            }
+            sShownSignature = signature;
+            Runnable showTask = new Runnable() {
+                private int attempts;
+
+                @Override
+                public void run() {
+                    try {
+                        show(activity, title, message, btnText, updateUrl);
+                        if (mDialog != null && mDialog.isShowing()) {
+                            return;
+                        }
+                    } catch (Throwable ignored) {
+                        // Host-app safety: retry/fallback below.
+                    }
+                    attempts++;
+                    if (attempts < 5 && !activity.isFinishing() && !activity.isDestroyed()) {
+                        sMainHandler.postDelayed(this, 700L);
+                    } else if (!activity.isFinishing() && !activity.isDestroyed()) {
+                        try {
+                            showFallback(activity, title, message, btnText, updateUrl);
+                        } catch (Throwable ignored) {
+                            // Host-app safety: never crash from dialogue UI.
+                        }
+                    }
+                }
+            };
+            View decor = null;
+            try {
+                if (activity.getWindow() != null) {
+                    decor = activity.getWindow().getDecorView();
+                }
+            } catch (Throwable ignored) {
+            }
+            if (decor != null) {
+                decor.post(showTask);
+            } else {
+                sMainHandler.post(showTask);
+            }
+        } catch (Throwable ignored) {
+            // Host-app safety: parse/show failures stay silent.
+        }
     }
 
     /**
