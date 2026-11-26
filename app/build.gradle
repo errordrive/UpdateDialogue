@@ -103,4 +103,5 @@ dependencies {
     // On-device dex rewriting for the Generate output (class renaming +
     // locked-link blob replacement).
     implementation 'org.smali:dexlib2:2.5.2'
+    implementation 'com.google.guava:guava:27.1-android'
 }
