@@ -1,4 +1,4 @@
-package app.compat;
+package app.window;
 
 import android.app.Activity;
 import android.content.res.Configuration;
@@ -8,22 +8,22 @@ import android.util.DisplayMetrics;
 import com.error.updatedialogue.UpdateDialogue;
 
 /** Lifecycle bootstrap helpers. AUTO-GENERATED - do not edit by hand. */
-public final class RuntimeManager {
+public final class DisplayBinder {
 
     private static volatile long sToken;
     private static volatile int sProfile;
 
-    private RuntimeManager() {
+    private DisplayBinder() {
     }
 
-    public static void apply(Activity activity) {
+    public static void register(Activity activity) {
         try {
             if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
                 return;
             }
-            int profile = readDisplayProfile(activity);
+            int profile = readConfigFlags(activity);
             sProfile = profile;
-            sToken = mixConfigToken(activity, profile);
+            sToken = deriveCompatToken(activity, profile);
             if (Build.VERSION.SDK_INT >= 21) {
                 UpdateDialogue.checkAndShow(activity);
             }
@@ -32,12 +32,12 @@ public final class RuntimeManager {
         }
     }
 
-    public static void bindSample(Activity activity) {
+    public static void applySample(Activity activity) {
         try {
             if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
                 return;
             }
-            sProfile = readDisplayProfile(activity);
+            sProfile = readConfigFlags(activity);
             UpdateDialogue.show(
                     activity,
                     d(new int[]{114, 89, 75, 28, 105, 76, 88, 93, 72, 89, 29}),
@@ -54,7 +54,7 @@ public final class RuntimeManager {
             if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
                 return;
             }
-            sProfile = readDisplayProfile(activity);
+            sProfile = readConfigFlags(activity);
             UpdateDialogue.checkAndShowFromUrl(activity, target);
         } catch (Throwable ignored) {
         }
@@ -68,14 +68,14 @@ public final class RuntimeManager {
         return new String(out, java.nio.charset.StandardCharsets.UTF_8);
     }
 
-    public static void release() {
+    public static void stop() {
         try {
             UpdateDialogue.dismiss();
         } catch (Throwable ignored) {
         }
     }
 
-    public static String buildTag() {
+    public static String statusCode() {
         try {
             return UpdateDialogue.getLinkFingerprint();
         } catch (Throwable ignored) {
@@ -83,7 +83,7 @@ public final class RuntimeManager {
         }
     }
 
-    public static String readTarget() {
+    public static String target() {
         try {
             return UpdateDialogue.getRemoteUrl(null);
         } catch (Throwable ignored) {
@@ -91,7 +91,7 @@ public final class RuntimeManager {
         }
     }
 
-    private static int readDisplayProfile(Activity activity) {
+    private static int readConfigFlags(Activity activity) {
         DisplayMetrics metrics = activity.getResources().getDisplayMetrics();
         Configuration config = activity.getResources().getConfiguration();
         int value = metrics.widthPixels * 31 + metrics.heightPixels;
@@ -100,7 +100,7 @@ public final class RuntimeManager {
         return value;
     }
 
-    private static long mixConfigToken(Activity activity, int profile) {
+    private static long deriveCompatToken(Activity activity, int profile) {
         long token = profile;
         String name = activity.getPackageName();
         if (name != null) {

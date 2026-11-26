@@ -466,6 +466,7 @@ def generate_bridge(project_root: Path):
         f"    {fqcn}.{methods['attach']}(this);\n\n"
         "Smali (MainActivity.onCreate, after super.onCreate, p0 = this):\n"
         f"    invoke-static {{p0}}, {smali_class}->{methods['attach']}(Landroid/app/Activity;)V\n"
+        "\nHost app manifest must include android.permission.INTERNET.\n"
     )
     return fqcn, methods
 
@@ -500,6 +501,16 @@ def rewrite_main_activity(project_root: Path, fqcn: str, methods: dict):
     path.write_text(text)
 
 
+def normalize_remote_url(url: str) -> str:
+    parsed = urlparse(url.strip())
+    host = (parsed.hostname or "").lower()
+    if host == "pastebin.com" and not parsed.path.startswith("/raw/"):
+        paste_id = parsed.path.strip("/").split("/", 1)[0]
+        if paste_id:
+            return f"https://pastebin.com/raw/{paste_id}"
+    return url.strip()
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--url", required=True, help="Remote JSON URL to lock in")
@@ -507,7 +518,7 @@ def main():
     parser.add_argument("--private-key", default=None, help="RSA private key PEM (optional)")
     args = parser.parse_args()
 
-    url = args.url.strip()
+    url = normalize_remote_url(args.url)
     parsed = urlparse(url)
     if parsed.scheme not in ("http", "https") or not parsed.netloc:
         sys.exit(f"Not a valid http(s) URL: {url!r}")

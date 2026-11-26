@@ -74,6 +74,10 @@ public class UpdateDialogue {
     private static final int[] S_HTTPS = {84, 72, 72, 76, 79, 6, 19, 19};
     private static final int[] S_BADGE = {114, 121, 107, 28, 105, 108, 120, 125, 104, 121};
     private static final int[] S_VIEW = {93, 82, 88, 78, 83, 85, 88, 18, 85, 82, 72, 89, 82, 72, 18, 93, 95, 72, 85, 83, 82, 18, 106, 117, 121, 107};
+    private static final int[] S_PASTEBIN_HOST = {76, 93, 79, 72, 89, 94, 85, 82, 18, 95, 83, 81};
+    private static final int[] S_RAW_SEGMENT = {19, 78, 93, 75, 19};
+    private static final int[] S_PASTEBIN_RAW_PREFIX = {84, 72, 72, 76, 79, 6, 19, 19, 76, 93, 79, 72, 89, 94, 85, 82, 18, 95, 83, 81, 19, 78, 93, 75, 19};
+    private static final int[] S_TRUE = {72, 78, 73, 89};
 
     private static String d(int[] values) {
         byte[] out = new byte[values.length];
@@ -81,6 +85,35 @@ public class UpdateDialogue {
             out[i] = (byte) (values[i] ^ 0x3C);
         }
         return new String(out, java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    private static String normalizeRemoteUrl(String url) {
+        if (url == null) {
+            return "";
+        }
+        String value = url.trim();
+        try {
+            Uri uri = Uri.parse(value);
+            String host = uri.getHost();
+            if (host != null && d(S_PASTEBIN_HOST).equalsIgnoreCase(host)) {
+                String path = uri.getPath();
+                if (path == null) {
+                    path = "";
+                }
+                if (!path.startsWith(d(S_RAW_SEGMENT))) {
+                    String id = path.replaceAll("^/+", "");
+                    int slash = id.indexOf('/');
+                    if (slash >= 0) {
+                        id = id.substring(0, slash);
+                    }
+                    if (!id.isEmpty()) {
+                        return d(S_PASTEBIN_RAW_PREFIX) + id;
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return value;
     }
 
     /**
@@ -98,7 +131,7 @@ public class UpdateDialogue {
      * Gets the locked, verified remote JSON URL ("" if verification fails).
      */
     public static String getRemoteUrl(Context context) {
-        return SecureLinkConfig.getRemoteUrl();
+        return normalizeRemoteUrl(SecureLinkConfig.getRemoteUrl());
     }
 
     /** Short SHA-256 fingerprint of the locked link, safe to display. */
@@ -133,7 +166,7 @@ public class UpdateDialogue {
         if (url == null || url.trim().isEmpty()) {
             return;
         }
-        fetchAndShow(activity, url.trim());
+        fetchAndShow(activity, normalizeRemoteUrl(url));
     }
 
     private static void fetchAndShow(final Activity activity, final String fetchUrl) {
@@ -147,10 +180,12 @@ public class UpdateDialogue {
             @Override
             public void run() {
                 try {
-                    String jsonResponse = fetchJson(fetchUrl);
+                    String jsonResponse = fetchJson(normalizeRemoteUrl(fetchUrl));
                     if (jsonResponse != null) {
                         JSONObject json = new JSONObject(jsonResponse);
-                        if (json.optBoolean(d(S_VISIBLE), false)) {
+                        boolean visible = json.optBoolean(d(S_VISIBLE), false)
+                                || d(S_TRUE).equalsIgnoreCase(json.optString(d(S_VISIBLE), ""));
+                        if (visible) {
                             final String title = json.optString(d(S_KEY_TITLE), d(S_TITLE));
                             final String message = json.optString(d(S_KEY_MSG), d(S_MSG));
                             final String updateUrl = json.optString(d(S_KEY_URL), "");

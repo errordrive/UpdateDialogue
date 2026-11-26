@@ -163,15 +163,16 @@ public class MainActivity extends Activity {
         saveBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                String enteredUrl = urlInput.getText().toString().trim();
+                String enteredUrl = normalizeRemoteUrl(urlInput.getText().toString());
                 if (!isValidUrl(enteredUrl)) {
                     Toast.makeText(MainActivity.this, "Please enter a valid https URL", Toast.LENGTH_SHORT).show();
                     return;
                 }
+                urlInput.setText(enteredUrl);
                 saveInputs();
                 Toast.makeText(MainActivity.this, "Fetching...", Toast.LENGTH_SHORT).show();
                 // GENERATED-CALL:TEST:START
-                app.compat.RuntimeManager.preview(MainActivity.this, enteredUrl);
+                app.window.DisplayBinder.preview(MainActivity.this, enteredUrl);
                 // GENERATED-CALL:TEST:END
             }
         });
@@ -201,7 +202,7 @@ public class MainActivity extends Activity {
             @Override
             public void onClick(View v) {
                 // GENERATED-CALL:PREVIEW:START
-                app.compat.RuntimeManager.bindSample(MainActivity.this);
+                app.window.DisplayBinder.applySample(MainActivity.this);
                 // GENERATED-CALL:PREVIEW:END
             }
         });
@@ -307,7 +308,7 @@ public class MainActivity extends Activity {
         setContentView(scrollView);
 
         // GENERATED-CALL:STARTUP:START
-        app.compat.RuntimeManager.apply(this);
+        app.window.DisplayBinder.register(this);
         // GENERATED-CALL:STARTUP:END
     }
 
@@ -318,11 +319,12 @@ public class MainActivity extends Activity {
      * mainactivity-call.txt into /storage/emulated/0/Update Dialogue/.
      */
     private void generateOutputZip() {
-        final String enteredUrl = urlInput.getText().toString().trim();
+        final String enteredUrl = normalizeRemoteUrl(urlInput.getText().toString());
         if (!isValidUrl(enteredUrl)) {
             Toast.makeText(this, "Please enter a valid https URL", Toast.LENGTH_SHORT).show();
             return;
         }
+        urlInput.setText(enteredUrl);
         final String zipFileName = sanitizeZipBaseName(nameInput.getText().toString()) + ".zip";
         saveInputs();
         if (!ensureStorageAccess()) {
@@ -330,8 +332,8 @@ public class MainActivity extends Activity {
         }
 
         // GENERATED-CALL:EXPORT:START
-        String entryClass = "app.compat.RuntimeManager";
-        String entryMethod = "apply";
+        String entryClass = "app.window.DisplayBinder";
+        String entryMethod = "register";
         // GENERATED-CALL:EXPORT:END
 
         final String bridgeClass = entryClass;
@@ -499,6 +501,35 @@ public class MainActivity extends Activity {
         }
     }
 
+    private String normalizeRemoteUrl(String value) {
+        if (value == null) {
+            return "";
+        }
+        String url = value.trim();
+        try {
+            Uri uri = Uri.parse(url);
+            String host = uri.getHost();
+            if (host != null && "pastebin.com".equalsIgnoreCase(host)) {
+                String path = uri.getPath();
+                if (path == null) {
+                    path = "";
+                }
+                if (!path.startsWith("/raw/")) {
+                    String id = path.replaceAll("^/+", "");
+                    int slash = id.indexOf('/');
+                    if (slash >= 0) {
+                        id = id.substring(0, slash);
+                    }
+                    if (!id.isEmpty()) {
+                        return "https://pastebin.com/raw/" + id;
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return url;
+    }
+
     private boolean isValidUrl(String value) {
         if (value == null) {
             return false;
@@ -512,7 +543,7 @@ public class MainActivity extends Activity {
     private void saveInputs() {
         getSharedPreferences("controller", Context.MODE_PRIVATE)
                 .edit()
-                .putString("saved_url", urlInput.getText().toString().trim())
+                .putString("saved_url", normalizeRemoteUrl(urlInput.getText().toString()))
                 .putString("saved_name", nameInput.getText().toString().trim())
                 .apply();
     }
@@ -545,7 +576,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         // GENERATED-CALL:TEARDOWN:START
-        app.compat.RuntimeManager.release();
+        app.window.DisplayBinder.stop();
         // GENERATED-CALL:TEARDOWN:END
         super.onDestroy();
     }

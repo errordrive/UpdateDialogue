@@ -1,6 +1,7 @@
 package com.error.updatedialogue;
 
 import android.content.Context;
+import android.net.Uri;
 import android.util.Base64;
 
 import org.jf.dexlib2.DexFileFactory;
@@ -78,7 +79,7 @@ final class DexGenerator {
         File template = new File(context.getCacheDir(), "template.dex");
         copyAsset(context, "dialogue.dex", template);
         String oldBlob = readAssetText(context, "template_blob.txt").trim();
-        String newBlob = buildBlob(url);
+        String newBlob = buildBlob(normalizeRemoteUrl(url));
 
         DexFile dexFile = DexFileFactory.loadDexFile(template, Opcodes.forApi(21));
 
@@ -212,7 +213,8 @@ final class DexGenerator {
                 + "    " + newBridgeClass + "." + newBridgeMethod + "(this);\n\n"
                 + "Smali (MainActivity.onCreate, after super.onCreate, p0 = this):\n"
                 + "    invoke-static {p0}, " + newBridgeDesc + "->" + newBridgeMethod
-                + "(Landroid/app/Activity;)V\n";
+                + "(Landroid/app/Activity;)V\n\n"
+                + "Host app manifest must include android.permission.INTERNET.\n";
         return new Result(out, hookText);
     }
 
@@ -234,6 +236,35 @@ final class DexGenerator {
             name = METHOD_VERBS[random.nextInt(METHOD_VERBS.length)];
         } while (name.equals(oldName) || usedNames.contains(name));
         return name;
+    }
+
+    private static String normalizeRemoteUrl(String value) {
+        if (value == null) {
+            return "";
+        }
+        String url = value.trim();
+        try {
+            Uri uri = Uri.parse(url);
+            String host = uri.getHost();
+            if (host != null && "pastebin.com".equalsIgnoreCase(host)) {
+                String path = uri.getPath();
+                if (path == null) {
+                    path = "";
+                }
+                if (!path.startsWith("/raw/")) {
+                    String id = path.replaceAll("^/+", "");
+                    int slash = id.indexOf('/');
+                    if (slash >= 0) {
+                        id = id.substring(0, slash);
+                    }
+                    if (!id.isEmpty()) {
+                        return "https://pastebin.com/raw/" + id;
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return url;
     }
 
     private static String buildBlob(String url) throws Exception {
