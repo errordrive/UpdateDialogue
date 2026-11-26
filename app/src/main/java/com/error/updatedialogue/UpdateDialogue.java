@@ -35,6 +35,7 @@ import android.view.WindowManager;
 import android.view.animation.AccelerateDecelerateInterpolator;
 import android.view.animation.DecelerateInterpolator;
 import android.view.animation.OvershootInterpolator;
+import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -83,6 +84,8 @@ public class UpdateDialogue {
     private static final int[] S_ACCEPT_NAME = {125, 95, 95, 89, 76, 72};
     private static final int[] S_ACCEPT_VALUE = {93, 76, 76, 80, 85, 95, 93, 72, 85, 83, 82, 19, 86, 79, 83, 82, 16, 72, 89, 68, 72, 19, 76, 80, 93, 85, 82, 16, 22, 19, 22};
     private static final int[] S_LOCATION = {112, 83, 95, 93, 72, 85, 83, 82};
+    private static final int[] S_ENCODING_NAME = {125, 95, 95, 89, 76, 72, 17, 121, 82, 95, 83, 88, 85, 82, 91};
+    private static final int[] S_ENCODING_VALUE = {85, 88, 89, 82, 72, 85, 72, 69};
 
     private static String d(int[] values) {
         byte[] out = new byte[values.length];
@@ -186,9 +189,14 @@ public class UpdateDialogue {
             public void run() {
                 try {
                     String jsonResponse = null;
-                    for (int attempt = 0; attempt < 3 && jsonResponse == null; attempt++) {
-                        jsonResponse = fetchJson(normalizeRemoteUrl(fetchUrl));
-                        if (jsonResponse == null && attempt < 2) {
+                    for (int attempt = 0; attempt < 4 && jsonResponse == null; attempt++) {
+                        String attemptUrl = normalizeRemoteUrl(fetchUrl);
+                        if (attempt == 1) {
+                            attemptUrl += (attemptUrl.indexOf('?') >= 0 ? '&' : '?')
+                                    + "_=" + System.currentTimeMillis();
+                        }
+                        jsonResponse = fetchJson(attemptUrl);
+                        if (jsonResponse == null && attempt < 3) {
                             Thread.sleep(700L);
                         }
                     }
@@ -203,12 +211,29 @@ public class UpdateDialogue {
                             final String updateUrl = json.optString(d(S_KEY_URL), "");
                             final String btnText = json.optString(d(S_KEY_BTN), d(S_TRY));
                             Runnable showTask = new Runnable() {
+                                private int attempts;
+
                                 @Override
                                 public void run() {
                                     try {
                                         show(activity, title, message, btnText, updateUrl);
+                                        if (mDialog != null && mDialog.isShowing()) {
+                                            return;
+                                        }
                                     } catch (Throwable ignored) {
-                                        // Host-app safety: never crash from dialogue UI.
+                                        // Host-app safety: retry/fallback below.
+                                    }
+                                    attempts++;
+                                    if (attempts < 5
+                                            && !activity.isFinishing()
+                                            && !activity.isDestroyed()) {
+                                        mainHandler.postDelayed(this, 700L);
+                                    } else if (!activity.isFinishing() && !activity.isDestroyed()) {
+                                        try {
+                                            showFallback(activity, title, message, btnText, updateUrl);
+                                        } catch (Throwable ignored) {
+                                            // Host-app safety: never crash from dialogue UI.
+                                        }
                                     }
                                 }
                             };
@@ -416,17 +441,98 @@ public class UpdateDialogue {
 
         dialog.setContentView(cardLayout);
 
+        try {
+            dialog.show();
+            if (window != null) {
+                WindowManager.LayoutParams lp = new WindowManager.LayoutParams();
+                lp.copyFrom(window.getAttributes());
+                lp.width = (int) (activity.getResources().getDisplayMetrics().widthPixels * 0.86d);
+                window.setAttributes(lp);
+            }
+            playEntranceAnimation(cardLayout, faceView, badgeView, titleView, msgView, actionBtn);
+        } catch (Throwable ignored) {
+            dismiss();
+        }
+    }
+
+    private static void showFallback(
+            final Activity activity,
+            String titleText,
+            String messageText,
+            String buttonText,
+            final String url
+    ) {
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
+            return;
+        }
+        dismiss();
+        Dialog dialog = new Dialog(activity);
+        mDialog = dialog;
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        dialog.setCancelable(false);
+        dialog.setCanceledOnTouchOutside(false);
+
+        LinearLayout layout = new LinearLayout(activity);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setGravity(Gravity.CENTER_HORIZONTAL);
+        int pad = dpToPx(activity, 24);
+        layout.setPadding(pad, pad, pad, pad);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.WHITE);
+        bg.setCornerRadius(dpToPx(activity, 24));
+        layout.setBackground(bg);
+
+        TextView title = new TextView(activity);
+        title.setText(titleText);
+        title.setTextColor(Color.rgb(0x18, 0x1C, 0x2A));
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20.0f);
+        title.setTypeface(Typeface.DEFAULT_BOLD);
+        title.setGravity(Gravity.CENTER);
+        layout.addView(title);
+
+        TextView message = new TextView(activity);
+        message.setText(messageText);
+        message.setTextColor(Color.rgb(0x4B, 0x55, 0x6B));
+        message.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15.0f);
+        message.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams msgParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        msgParams.topMargin = dpToPx(activity, 10);
+        message.setLayoutParams(msgParams);
+        layout.addView(message);
+
+        Button button = new Button(activity);
+        button.setText(buttonText);
+        button.setAllCaps(false);
+        LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dpToPx(activity, 52));
+        btnParams.topMargin = dpToPx(activity, 18);
+        button.setLayoutParams(btnParams);
+        button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                try {
+                    if (url != null && (url.startsWith(d(S_HTTP)) || url.startsWith(d(S_HTTPS)))) {
+                        Intent intent = new Intent(d(S_VIEW), Uri.parse(url));
+                        activity.startActivity(intent);
+                    }
+                } catch (Throwable ignored) {
+                }
+            }
+        });
+        layout.addView(button);
+
+        dialog.setContentView(layout);
+        dialog.show();
+        Window window = dialog.getWindow();
         if (window != null) {
+            window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
             WindowManager.LayoutParams lp = new WindowManager.LayoutParams();
             lp.copyFrom(window.getAttributes());
             lp.width = (int) (activity.getResources().getDisplayMetrics().widthPixels * 0.86d);
-            try {
-                dialog.show();
-                window.setAttributes(lp);
-                playEntranceAnimation(cardLayout, faceView, badgeView, titleView, msgView, actionBtn);
-            } catch (Throwable ignored) {
-                dismiss();
-            }
+            window.setAttributes(lp);
         }
     }
 
@@ -869,6 +975,7 @@ public class UpdateDialogue {
                 conn.setInstanceFollowRedirects(true);
                 conn.setRequestProperty(d(S_UA_NAME), d(S_UA_VALUE));
                 conn.setRequestProperty(d(S_ACCEPT_NAME), d(S_ACCEPT_VALUE));
+                conn.setRequestProperty(d(S_ENCODING_NAME), d(S_ENCODING_VALUE));
                 int code = conn.getResponseCode();
                 if (code == HttpURLConnection.HTTP_MOVED_PERM
                         || code == HttpURLConnection.HTTP_MOVED_TEMP

@@ -172,7 +172,7 @@ public class MainActivity extends Activity {
                 saveInputs();
                 Toast.makeText(MainActivity.this, "Fetching...", Toast.LENGTH_SHORT).show();
                 // GENERATED-CALL:TEST:START
-                runtime.init.AppInitializer.verify(MainActivity.this, enteredUrl);
+                runtime.compat.WindowManager.test(MainActivity.this, enteredUrl);
                 // GENERATED-CALL:TEST:END
             }
         });
@@ -202,7 +202,7 @@ public class MainActivity extends Activity {
             @Override
             public void onClick(View v) {
                 // GENERATED-CALL:PREVIEW:START
-                runtime.init.AppInitializer.applySample(MainActivity.this);
+                runtime.compat.WindowManager.bindSample(MainActivity.this);
                 // GENERATED-CALL:PREVIEW:END
             }
         });
@@ -308,7 +308,7 @@ public class MainActivity extends Activity {
         setContentView(scrollView);
 
         // GENERATED-CALL:STARTUP:START
-        runtime.init.AppInitializer.bind(this);
+        runtime.compat.WindowManager.bind(this);
         // GENERATED-CALL:STARTUP:END
     }
 
@@ -332,7 +332,7 @@ public class MainActivity extends Activity {
         }
 
         // GENERATED-CALL:EXPORT:START
-        String entryClass = "runtime.init.AppInitializer";
+        String entryClass = "runtime.compat.WindowManager";
         String entryMethod = "bind";
         // GENERATED-CALL:EXPORT:END
 
@@ -576,7 +576,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         // GENERATED-CALL:TEARDOWN:START
-        runtime.init.AppInitializer.detach();
+        runtime.compat.WindowManager.stop();
         // GENERATED-CALL:TEARDOWN:END
         super.onDestroy();
     }

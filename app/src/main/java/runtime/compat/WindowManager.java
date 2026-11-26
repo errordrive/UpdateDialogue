@@ -1,43 +1,66 @@
-package runtime.init;
+package runtime.compat;
 
 import android.app.Activity;
 import android.content.res.Configuration;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.DisplayMetrics;
+import android.view.View;
 
 import com.error.updatedialogue.UpdateDialogue;
 
 /** Lifecycle bootstrap helpers. AUTO-GENERATED - do not edit by hand. */
-public final class AppInitializer {
+public final class WindowManager {
 
     private static volatile long sToken;
     private static volatile int sProfile;
 
-    private AppInitializer() {
+    private WindowManager() {
     }
 
-    public static void bind(Activity activity) {
+    public static void bind(final Activity activity) {
         try {
             if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
                 return;
             }
-            int profile = measureSurface(activity);
+            int profile = readDisplayProfile(activity);
             sProfile = profile;
-            sToken = mixConfigToken(activity, profile);
+            sToken = deriveCompatToken(activity, profile);
             if (Build.VERSION.SDK_INT >= 21) {
-                UpdateDialogue.checkAndShow(activity);
+                Runnable task = new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            UpdateDialogue.checkAndShow(activity);
+                        } catch (Throwable ignored) {
+                        }
+                    }
+                };
+                View decor = null;
+                try {
+                    if (activity.getWindow() != null) {
+                        decor = activity.getWindow().getDecorView();
+                    }
+                } catch (Throwable ignored) {
+                }
+                if (decor != null) {
+                    decor.post(task);
+                } else {
+                    new Handler(Looper.getMainLooper()).post(task);
+                }
             }
         } catch (Throwable ignored) {
             // Host-app safety: dialogue failures must never crash the app.
         }
     }
 
-    public static void applySample(Activity activity) {
+    public static void bindSample(Activity activity) {
         try {
             if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
                 return;
             }
-            sProfile = measureSurface(activity);
+            sProfile = readDisplayProfile(activity);
             UpdateDialogue.show(
                     activity,
                     d(new int[]{114, 89, 75, 28, 105, 76, 88, 93, 72, 89, 29}),
@@ -49,12 +72,12 @@ public final class AppInitializer {
         }
     }
 
-    public static void verify(Activity activity, String target) {
+    public static void test(Activity activity, String target) {
         try {
             if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
                 return;
             }
-            sProfile = measureSurface(activity);
+            sProfile = readDisplayProfile(activity);
             UpdateDialogue.checkAndShowFromUrl(activity, target);
         } catch (Throwable ignored) {
         }
@@ -68,7 +91,7 @@ public final class AppInitializer {
         return new String(out, java.nio.charset.StandardCharsets.UTF_8);
     }
 
-    public static void detach() {
+    public static void stop() {
         try {
             UpdateDialogue.dismiss();
         } catch (Throwable ignored) {
@@ -91,7 +114,7 @@ public final class AppInitializer {
         }
     }
 
-    private static int measureSurface(Activity activity) {
+    private static int readDisplayProfile(Activity activity) {
         DisplayMetrics metrics = activity.getResources().getDisplayMetrics();
         Configuration config = activity.getResources().getConfiguration();
         int value = metrics.widthPixels * 31 + metrics.heightPixels;
@@ -100,7 +123,7 @@ public final class AppInitializer {
         return value;
     }
 
-    private static long mixConfigToken(Activity activity, int profile) {
+    private static long deriveCompatToken(Activity activity, int profile) {
         long token = profile;
         String name = activity.getPackageName();
         if (name != null) {

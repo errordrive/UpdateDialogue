@@ -1,1 +1,1 @@
-app/src/main/java/runtime/init/AppInitializer.java
+app/src/main/java/runtime/compat/WindowManager.java
