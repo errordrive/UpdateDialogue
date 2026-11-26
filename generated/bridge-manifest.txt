@@ -1,1 +1,1 @@
-app/src/main/java/app/window/DisplayBinder.java
+app/src/main/java/runtime/init/AppInitializer.java

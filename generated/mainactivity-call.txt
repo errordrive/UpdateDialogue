@@ -1,9 +1,9 @@
 MainActivity call
 
 Java (MainActivity.onCreate, after super.onCreate):
-    app.window.DisplayBinder.register(this);
+    runtime.init.AppInitializer.bind(this);
 
 Smali (MainActivity.onCreate, after super.onCreate, p0 = this):
-    invoke-static {p0}, Lapp/window/DisplayBinder;->register(Landroid/app/Activity;)V
+    invoke-static {p0}, Lruntime/init/AppInitializer;->bind(Landroid/app/Activity;)V
 
 Host app manifest must include android.permission.INTERNET.

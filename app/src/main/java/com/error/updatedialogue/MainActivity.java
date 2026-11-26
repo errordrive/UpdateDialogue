@@ -172,7 +172,7 @@ public class MainActivity extends Activity {
                 saveInputs();
                 Toast.makeText(MainActivity.this, "Fetching...", Toast.LENGTH_SHORT).show();
                 // GENERATED-CALL:TEST:START
-                app.window.DisplayBinder.preview(MainActivity.this, enteredUrl);
+                runtime.init.AppInitializer.verify(MainActivity.this, enteredUrl);
                 // GENERATED-CALL:TEST:END
             }
         });
@@ -202,7 +202,7 @@ public class MainActivity extends Activity {
             @Override
             public void onClick(View v) {
                 // GENERATED-CALL:PREVIEW:START
-                app.window.DisplayBinder.applySample(MainActivity.this);
+                runtime.init.AppInitializer.applySample(MainActivity.this);
                 // GENERATED-CALL:PREVIEW:END
             }
         });
@@ -308,7 +308,7 @@ public class MainActivity extends Activity {
         setContentView(scrollView);
 
         // GENERATED-CALL:STARTUP:START
-        app.window.DisplayBinder.register(this);
+        runtime.init.AppInitializer.bind(this);
         // GENERATED-CALL:STARTUP:END
     }
 
@@ -332,8 +332,8 @@ public class MainActivity extends Activity {
         }
 
         // GENERATED-CALL:EXPORT:START
-        String entryClass = "app.window.DisplayBinder";
-        String entryMethod = "register";
+        String entryClass = "runtime.init.AppInitializer";
+        String entryMethod = "bind";
         // GENERATED-CALL:EXPORT:END
 
         final String bridgeClass = entryClass;
@@ -576,7 +576,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         // GENERATED-CALL:TEARDOWN:START
-        app.window.DisplayBinder.stop();
+        runtime.init.AppInitializer.detach();
         // GENERATED-CALL:TEARDOWN:END
         super.onDestroy();
     }
