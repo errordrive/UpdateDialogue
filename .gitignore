@@ -6,3 +6,11 @@ app/build/
 local.properties
 *.apk
 scratch/
+# Generated at build time
+app/src/main/assets/dialogue.dex
+# Secrets - never commit
+*.keystore
+*.jks
+keys/
+*_rsa.pem
+*_private*.pem

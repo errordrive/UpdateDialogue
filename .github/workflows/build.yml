@@ -4,6 +4,11 @@ on:
   push:
     branches: [ main, master ]
   workflow_dispatch:
+    inputs:
+      remote_url:
+        description: "Remote JSON link to lock inside the app (blank = dialogue.properties)"
+        required: false
+        type: string
 
 jobs:
   build:
@@ -31,25 +36,54 @@ jobs:
         with:
           gradle-version: '8.7'
 
-      - name: Build Debug APK
-        run: gradle assembleDebug --no-daemon
-
-      - name: Build standalone UpdateDialogue classes.dex
+      # Optional production signing: add these repo secrets to sign with
+      # your own RSA keystore instead of the debug key:
+      #   RELEASE_KEYSTORE_BASE64, RELEASE_STORE_PASSWORD,
+      #   RELEASE_KEY_ALIAS, RELEASE_KEY_PASSWORD
+      # Optional: RSA_PRIVATE_KEY_PEM secret to sign the locked link with
+      # your own RSA private key (otherwise a per-build key is generated).
+      - name: Prepare release keystore (if secret set)
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
         run: |
-          mkdir -p build/javac-out build/dex-out
-          javac -source 8 -target 8 \
-            -classpath "$ANDROID_HOME/platforms/android-34/android.jar" \
-            -d build/javac-out \
-            app/src/main/java/com/error/updatedialogue/UpdateDialogue.java
-          "$ANDROID_HOME/build-tools/34.0.0/d8" \
-            --min-api 21 \
-            --output build/dex-out \
-            build/javac-out/com/error/updatedialogue/*.class
+          if [ -n "$RELEASE_KEYSTORE_BASE64" ]; then
+            echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+            echo "RELEASE_KEYSTORE=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+          fi
 
-      - name: Upload APK and classes.dex artifacts
+      - name: Build Release APK (R8 + locked link)
+        env:
+          DIALOGUE_REMOTE_URL: ${{ inputs.remote_url }}
+          RSA_PRIVATE_KEY_PEM: ${{ secrets.RSA_PRIVATE_KEY_PEM }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: gradle assembleRelease --no-daemon
+
+      - name: Verify APK signature (RSA / SHA-256)
+        run: |
+          "$ANDROID_HOME/build-tools/34.0.0/apksigner" verify --verbose \
+            app/build/outputs/apk/release/app-release.apk
+
+      - name: Package Update Dialogue output zip
+        run: |
+          mkdir -p "build/Update Dialogue"
+          cp app/src/main/assets/dialogue.dex "build/Update Dialogue/classes.dex"
+          cp generated/mainactivity-call.txt "build/Update Dialogue/mainactivity-call.txt"
+          printf '%s\n' \
+            'Update Dialogue output' \
+            '' \
+            'classes.dex - standalone dialogue dex (R8-obfuscated class names;' \
+            'the generated entry class keeps its generated name).' \
+            'mainactivity-call.txt - the MainActivity call hook for this build.' \
+            'Names regenerate on every generate.' \
+            > "build/Update Dialogue/README.txt"
+          cd "build/Update Dialogue" && zip -r "../Update Dialogue.zip" .
+
+      - name: Upload APK and Update Dialogue zip artifacts
         uses: actions/upload-artifact@v4
         with:
           name: UpdateDialogue-Build
           path: |
-            app/build/outputs/apk/debug/app-debug.apk
-            build/dex-out/classes.dex
+            app/build/outputs/apk/release/app-release.apk
+            build/Update Dialogue.zip

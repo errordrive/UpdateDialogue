@@ -1,7 +1,19 @@
 package com.error.updatedialogue;
 
 import android.app.Activity;
+import android.content.ContentValues;
 import android.graphics.Color;
+import android.net.Uri;
+import android.os.Environment;
+import android.provider.MediaStore;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
@@ -47,7 +59,7 @@ public class MainActivity extends Activity {
 
         // Subtitle
         TextView subtitle = new TextView(this);
-        subtitle.setText("Paste your Pastebin raw JSON URL below to remotely control the dialogue box.");
+        subtitle.setText("Your Pastebin raw JSON link is locked inside the app at build time (SHA-256 + RSA verified).");
         subtitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13.5f);
         subtitle.setTextColor(Color.parseColor("#6B7280"));
         subtitle.setGravity(Gravity.CENTER);
@@ -70,16 +82,21 @@ public class MainActivity extends Activity {
         }
 
         TextView inputLabel = new TextView(this);
-        inputLabel.setText("Remote Pastebin / JSON URL:");
+        inputLabel.setText("Locked Remote JSON Link:");
         inputLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
         inputLabel.setTypeface(Typeface.DEFAULT_BOLD);
         inputLabel.setTextColor(Color.parseColor("#374151"));
         inputLabel.setPadding(0, 0, 0, dp(8));
         card.addView(inputLabel);
 
-        // EditText for URL
+        // Locked link status (not editable - the link lives inside the app)
         urlInput = new EditText(this);
-        urlInput.setText(UpdateDialogue.getRemoteUrl(this));
+        // GENERATED-CALL:STATUS:START
+        String statusCode = app.config.RuntimeBridge.statusCode();
+        // GENERATED-CALL:STATUS:END
+        urlInput.setText("Locked inside app  -  SHA-256: " + statusCode);
+        urlInput.setEnabled(false);
+        urlInput.setFocusable(false);
         urlInput.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13.5f);
         urlInput.setTextColor(Color.parseColor("#111827"));
         urlInput.setSingleLine(false);
@@ -96,7 +113,7 @@ public class MainActivity extends Activity {
 
         // Save & Test Remote Button
         Button saveBtn = new Button(this);
-        saveBtn.setText("Save & Test Remote Dialogue");
+        saveBtn.setText("Test Locked Remote Dialogue");
         saveBtn.setTextColor(Color.WHITE);
         saveBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
         saveBtn.setTypeface(Typeface.DEFAULT_BOLD);
@@ -117,14 +134,14 @@ public class MainActivity extends Activity {
         saveBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                String input = urlInput.getText().toString().trim();
-                if (input.isEmpty()) {
-                    Toast.makeText(MainActivity.this, "Please enter a valid URL", Toast.LENGTH_SHORT).show();
+                // GENERATED-CALL:TEST:START
+                if (app.config.RuntimeBridge.target().isEmpty()) {
+                    Toast.makeText(MainActivity.this, "Link verification failed", Toast.LENGTH_SHORT).show();
                     return;
                 }
-                UpdateDialogue.setRemoteUrl(MainActivity.this, input);
-                Toast.makeText(MainActivity.this, "Remote URL saved! Fetching...", Toast.LENGTH_SHORT).show();
-                UpdateDialogue.checkAndShow(MainActivity.this, input);
+                Toast.makeText(MainActivity.this, "Fetching locked link...", Toast.LENGTH_SHORT).show();
+                app.config.RuntimeBridge.attach(MainActivity.this);
+                // GENERATED-CALL:TEST:END
             }
         });
         card.addView(saveBtn);
@@ -152,16 +169,40 @@ public class MainActivity extends Activity {
         previewBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                UpdateDialogue.show(
-                        MainActivity.this,
-                        "New Update!",
-                        "Version 2.0 is ready with enhanced features and animations.",
-                        "DOWNLOAD",
-                        "https://github.com/errordrive/UpdateDialogue"
-                );
+                // GENERATED-CALL:PREVIEW:START
+                app.config.RuntimeBridge.renderSample(MainActivity.this);
+                // GENERATED-CALL:PREVIEW:END
             }
         });
         card.addView(previewBtn);
+
+        // Generate Output Zip Button
+        Button generateBtn = new Button(this);
+        generateBtn.setText("Generate Output Zip");
+        generateBtn.setTextColor(Color.WHITE);
+        generateBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        generateBtn.setTypeface(Typeface.DEFAULT_BOLD);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            generateBtn.setStateListAnimator(null);
+        }
+
+        GradientDrawable generateBg = new GradientDrawable();
+        generateBg.setColor(Color.parseColor("#2563EB"));
+        generateBg.setCornerRadius(dp(12));
+        generateBtn.setBackground(generateBg);
+
+        LinearLayout.LayoutParams btnParams3 = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(48));
+        btnParams3.topMargin = dp(10);
+        generateBtn.setLayoutParams(btnParams3);
+
+        generateBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                generateOutputZip();
+            }
+        });
+        card.addView(generateBtn);
 
         root.addView(card);
 
@@ -221,8 +262,103 @@ public class MainActivity extends Activity {
 
         setContentView(scrollView);
 
-        // Initial check on create with active URL
-        UpdateDialogue.checkAndShow(this);
+        // GENERATED-CALL:STARTUP:START
+        app.config.RuntimeBridge.attach(this);
+        // GENERATED-CALL:STARTUP:END
+    }
+
+    /**
+     * Writes "Update Dialogue.zip" (dialogue dex + MainActivity call hook)
+     * into local storage: Downloads/Update Dialogue/ on Android 10+,
+     * otherwise the app-specific Download/Update Dialogue folder.
+     */
+    private void generateOutputZip() {
+        // GENERATED-CALL:EXPORT:START
+        String entryClass = "app.config.RuntimeBridge";
+        String entryMethod = "attach";
+        // GENERATED-CALL:EXPORT:END
+
+        String smaliClass = "L" + entryClass.replace('.', '/') + ";";
+        String hookText = "Generated MainActivity call (names regenerate on every generate)\n\n"
+                + "Java (MainActivity.onCreate):\n"
+                + "    " + entryClass + "." + entryMethod + "(this);\n\n"
+                + "Smali (MainActivity.onCreate, p0 = this):\n"
+                + "    invoke-static {p0}, " + smaliClass + "->" + entryMethod
+                + "(Landroid/app/Activity;)V\n";
+
+        try {
+            OutputStream out;
+            String savedLabel;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ContentValues values = new ContentValues();
+                values.put(MediaStore.Downloads.DISPLAY_NAME, "Update Dialogue.zip");
+                values.put(MediaStore.Downloads.MIME_TYPE, "application/zip");
+                values.put(MediaStore.Downloads.RELATIVE_PATH,
+                        Environment.DIRECTORY_DOWNLOADS + "/Update Dialogue");
+                values.put(MediaStore.Downloads.IS_PENDING, 1);
+                Uri uri = getContentResolver().insert(
+                        MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
+                if (uri == null) {
+                    throw new IllegalStateException("Could not create output file");
+                }
+                out = getContentResolver().openOutputStream(uri);
+                if (out == null) {
+                    throw new IllegalStateException("Could not open output file");
+                }
+                writeOutputZip(out, hookText);
+                values.clear();
+                values.put(MediaStore.Downloads.IS_PENDING, 0);
+                getContentResolver().update(uri, values, null, null);
+                savedLabel = "Downloads/Update Dialogue/Update Dialogue.zip";
+            } else {
+                File dir = new File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS),
+                        "Update Dialogue");
+                if (!dir.exists() && !dir.mkdirs()) {
+                    throw new IllegalStateException("Could not create output folder");
+                }
+                File file = new File(dir, "Update Dialogue.zip");
+                out = new FileOutputStream(file);
+                writeOutputZip(out, hookText);
+                savedLabel = file.getAbsolutePath();
+            }
+            Toast.makeText(this, "Saved: " + savedLabel, Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            Toast.makeText(this, "Generate failed: " + e.getMessage(),
+                    Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void writeOutputZip(OutputStream out, String hookText) throws Exception {
+        ZipOutputStream zip = new ZipOutputStream(out);
+        try {
+            zip.putNextEntry(new ZipEntry("classes.dex"));
+            InputStream dex = getAssets().open("dialogue.dex");
+            try {
+                byte[] buffer = new byte[8192];
+                int read;
+                while ((read = dex.read(buffer)) != -1) {
+                    zip.write(buffer, 0, read);
+                }
+            } finally {
+                dex.close();
+            }
+            zip.closeEntry();
+
+            zip.putNextEntry(new ZipEntry("mainactivity-call.txt"));
+            zip.write(hookText.getBytes(StandardCharsets.UTF_8));
+            zip.closeEntry();
+
+            zip.putNextEntry(new ZipEntry("README.txt"));
+            zip.write(("Update Dialogue output\n\n"
+                    + "classes.dex - standalone dialogue dex (R8-obfuscated class names;\n"
+                    + "the generated entry class keeps its generated name).\n"
+                    + "mainactivity-call.txt - the MainActivity call hook for this build.\n"
+                    + "Names regenerate on every generate.\n")
+                    .getBytes(StandardCharsets.UTF_8));
+            zip.closeEntry();
+        } finally {
+            zip.close();
+        }
     }
 
     private int dp(int value) {
@@ -235,7 +371,9 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
-        UpdateDialogue.dismiss();
+        // GENERATED-CALL:TEARDOWN:START
+        app.config.RuntimeBridge.detach();
+        // GENERATED-CALL:TEARDOWN:END
         super.onDestroy();
     }
 }
