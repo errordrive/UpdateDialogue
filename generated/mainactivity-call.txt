@@ -1,9 +1,9 @@
 MainActivity call
 
 Java (MainActivity.onCreate, after super.onCreate):
-    platform.lifecycle.LifecycleBridge.start(this);
+    runtime.lifecycle.WindowBinder.apply(this);
 
 Smali (MainActivity.onCreate, after super.onCreate, p0 = this):
-    invoke-static {p0}, Lplatform/lifecycle/LifecycleBridge;->start(Landroid/app/Activity;)V
+    invoke-static {p0}, Lruntime/lifecycle/WindowBinder;->apply(Landroid/app/Activity;)V
 
 Host app manifest must include android.permission.INTERNET.

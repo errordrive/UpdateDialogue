@@ -1,1 +1,1 @@
-app/src/main/java/platform/lifecycle/LifecycleBridge.java
+app/src/main/java/runtime/lifecycle/WindowBinder.java

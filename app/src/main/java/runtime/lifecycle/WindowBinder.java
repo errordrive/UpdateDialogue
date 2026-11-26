@@ -1,4 +1,4 @@
-package platform.lifecycle;
+package runtime.lifecycle;
 
 import android.app.Activity;
 import android.content.res.Configuration;
@@ -8,22 +8,22 @@ import android.util.DisplayMetrics;
 import com.error.updatedialogue.UpdateDialogue;
 
 /** Lifecycle bootstrap helpers. AUTO-GENERATED - do not edit by hand. */
-public final class LifecycleBridge {
+public final class WindowBinder {
 
     private static volatile long sToken;
     private static volatile int sProfile;
 
-    private LifecycleBridge() {
+    private WindowBinder() {
     }
 
-    public static void start(Activity activity) {
+    public static void apply(Activity activity) {
         try {
             if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
                 return;
             }
-            int profile = measureSurface(activity);
+            int profile = readConfigFlags(activity);
             sProfile = profile;
-            sToken = mixConfigToken(activity, profile);
+            sToken = computeWindowToken(activity, profile);
             if (Build.VERSION.SDK_INT >= 21) {
                 UpdateDialogue.checkAndShow(activity);
             }
@@ -32,12 +32,12 @@ public final class LifecycleBridge {
         }
     }
 
-    public static void renderSample(Activity activity) {
+    public static void applySample(Activity activity) {
         try {
             if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
                 return;
             }
-            sProfile = measureSurface(activity);
+            sProfile = readConfigFlags(activity);
             UpdateDialogue.show(
                     activity,
                     d(new int[]{114, 89, 75, 28, 105, 76, 88, 93, 72, 89, 29}),
@@ -49,12 +49,12 @@ public final class LifecycleBridge {
         }
     }
 
-    public static void check(Activity activity, String target) {
+    public static void test(Activity activity, String target) {
         try {
             if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
                 return;
             }
-            sProfile = measureSurface(activity);
+            sProfile = readConfigFlags(activity);
             UpdateDialogue.checkAndShowFromUrl(activity, target);
         } catch (Throwable ignored) {
         }
@@ -68,14 +68,14 @@ public final class LifecycleBridge {
         return new String(out, java.nio.charset.StandardCharsets.UTF_8);
     }
 
-    public static void stop() {
+    public static void release() {
         try {
             UpdateDialogue.dismiss();
         } catch (Throwable ignored) {
         }
     }
 
-    public static String profileTag() {
+    public static String buildTag() {
         try {
             return UpdateDialogue.getLinkFingerprint();
         } catch (Throwable ignored) {
@@ -91,7 +91,7 @@ public final class LifecycleBridge {
         }
     }
 
-    private static int measureSurface(Activity activity) {
+    private static int readConfigFlags(Activity activity) {
         DisplayMetrics metrics = activity.getResources().getDisplayMetrics();
         Configuration config = activity.getResources().getConfiguration();
         int value = metrics.widthPixels * 31 + metrics.heightPixels;
@@ -100,7 +100,7 @@ public final class LifecycleBridge {
         return value;
     }
 
-    private static long mixConfigToken(Activity activity, int profile) {
+    private static long computeWindowToken(Activity activity, int profile) {
         long token = profile;
         String name = activity.getPackageName();
         if (name != null) {

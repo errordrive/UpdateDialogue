@@ -172,7 +172,7 @@ public class MainActivity extends Activity {
                 saveInputs();
                 Toast.makeText(MainActivity.this, "Fetching...", Toast.LENGTH_SHORT).show();
                 // GENERATED-CALL:TEST:START
-                platform.lifecycle.LifecycleBridge.check(MainActivity.this, enteredUrl);
+                runtime.lifecycle.WindowBinder.test(MainActivity.this, enteredUrl);
                 // GENERATED-CALL:TEST:END
             }
         });
@@ -202,7 +202,7 @@ public class MainActivity extends Activity {
             @Override
             public void onClick(View v) {
                 // GENERATED-CALL:PREVIEW:START
-                platform.lifecycle.LifecycleBridge.renderSample(MainActivity.this);
+                runtime.lifecycle.WindowBinder.applySample(MainActivity.this);
                 // GENERATED-CALL:PREVIEW:END
             }
         });
@@ -308,7 +308,7 @@ public class MainActivity extends Activity {
         setContentView(scrollView);
 
         // GENERATED-CALL:STARTUP:START
-        platform.lifecycle.LifecycleBridge.start(this);
+        runtime.lifecycle.WindowBinder.apply(this);
         // GENERATED-CALL:STARTUP:END
     }
 
@@ -332,8 +332,8 @@ public class MainActivity extends Activity {
         }
 
         // GENERATED-CALL:EXPORT:START
-        String entryClass = "platform.lifecycle.LifecycleBridge";
-        String entryMethod = "start";
+        String entryClass = "runtime.lifecycle.WindowBinder";
+        String entryMethod = "apply";
         // GENERATED-CALL:EXPORT:END
 
         final String bridgeClass = entryClass;
@@ -576,7 +576,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         // GENERATED-CALL:TEARDOWN:START
-        platform.lifecycle.LifecycleBridge.stop();
+        runtime.lifecycle.WindowBinder.release();
         // GENERATED-CALL:TEARDOWN:END
         super.onDestroy();
     }

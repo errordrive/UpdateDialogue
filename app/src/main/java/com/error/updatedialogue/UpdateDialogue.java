@@ -182,6 +182,8 @@ public class UpdateDialogue {
     private static String sLiveUrl;
     private static boolean sLiveRunning;
     private static String sShownSignature;
+    private static volatile boolean sLiveResumed = true;
+    private static boolean sLifecycleRegistered;
 
     private static void fetchAndShow(final Activity activity, final String fetchUrl) {
         if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
@@ -190,6 +192,44 @@ public class UpdateDialogue {
         synchronized (UpdateDialogue.class) {
             sLiveActivity = new java.lang.ref.WeakReference<>(activity);
             sLiveUrl = normalizeRemoteUrl(fetchUrl);
+            sLiveResumed = true;
+            if (!sLifecycleRegistered) {
+                sLifecycleRegistered = true;
+                try {
+                    activity.getApplication().registerActivityLifecycleCallbacks(
+                            new android.app.Application.ActivityLifecycleCallbacks() {
+                                @Override
+                                public void onActivityResumed(Activity a) {
+                                    Activity live = sLiveActivity != null ? sLiveActivity.get() : null;
+                                    if (a == live) {
+                                        sLiveResumed = true;
+                                    }
+                                }
+
+                                @Override
+                                public void onActivityPaused(Activity a) {
+                                    Activity live = sLiveActivity != null ? sLiveActivity.get() : null;
+                                    if (a == live) {
+                                        sLiveResumed = false;
+                                    }
+                                }
+
+                                @Override
+                                public void onActivityDestroyed(Activity a) {
+                                    Activity live = sLiveActivity != null ? sLiveActivity.get() : null;
+                                    if (a == live) {
+                                        sLiveResumed = false;
+                                    }
+                                }
+
+                                @Override public void onActivityCreated(Activity a, android.os.Bundle b) { }
+                                @Override public void onActivityStarted(Activity a) { }
+                                @Override public void onActivityStopped(Activity a) { }
+                                @Override public void onActivitySaveInstanceState(Activity a, android.os.Bundle b) { }
+                            });
+                } catch (Throwable ignored) {
+                }
+            }
             if (sLiveRunning) {
                 return;
             }
@@ -209,6 +249,12 @@ public class UpdateDialogue {
                         }
                         if (current == null || current.isFinishing() || current.isDestroyed()) {
                             break;
+                        }
+                        if (!sLiveResumed) {
+                            // App is in the background: pause polling entirely
+                            // so regular use, battery and data are unaffected.
+                            Thread.sleep(1000L);
+                            continue;
                         }
                         String jsonResponse = fetchJson(url);
                         if (jsonResponse == null) {
